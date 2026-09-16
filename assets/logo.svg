@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="냄새 나침반 로고">
+  <g fill="none" stroke="#1F5C8B" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="32" r="27" stroke-width="3"/>
+    <path d="M32 5v6M32 53v6M5 32h6M53 32h6M13 13l4 4M47 47l4 4M51 13l-4 4M17 47l-4 4" stroke-width="2"/>
+    <path d="M32 14l7 21-7 15-7-15z" fill="#1F5C8B" stroke-width="2"/>
+    <path d="M32 50c8 0 12 3 17 0M32 55c7 0 10 2 14 0" stroke="#2E8B74" stroke-width="2.5"/>
+  </g>
+</svg>
+
