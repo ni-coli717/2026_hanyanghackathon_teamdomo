@@ -13,13 +13,14 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-첫 실행 시 `seed=20212`인 14일 샘플이 `data/sample/`과 로컬 `data/odor.db`에 생성됩니다. 화면 상단의 샘플 배너가 켜져 있으며, `설정 · 데이터`에서 실데이터 영역으로 전환하거나 CSV를 가져올 수 있습니다.
+첫 실행 시 `data/provided/`의 2026-09-09~2026-09-16 제공 시나리오가 로컬 `data/odor.db`에 적재됩니다. 원본 워크북의 `record_origin=simulated` 표기를 보존해 화면 상단에 가상 데이터 배너를 표시하며, 실제 주민 관측으로 표현하지 않습니다. `설정 · 데이터`에서 실데이터 영역으로 전환하거나 CSV를 가져올 수 있습니다.
 
 ## 주요 구조
 
 - `app.py`: 상단 네비게이션과 6개 사용자 화면, 설정 화면
 - `core/repo.py`: 향후 Supabase/Google Sheets 구현체로 교체 가능한 저장소 인터페이스
 - `core/sample_data.py`: 고정 시드 샘플 CSV 생성기
+- `core/import_workbook.py`: 제공 XLSX를 앱 스키마로 재현 가능하게 변환
 - `core/features.py`: 30분 관측창, 기상 결합, 구역별 방향 정렬도
 - `core/model.py`: 규칙 기준선, 로지스틱 회귀, 랜덤포레스트, 시간 기준 평가
 - `ext/`: 가상 기기와 선택형 Arduino 직렬 연결
@@ -29,6 +30,12 @@ streamlit run app.py
 
 ```powershell
 python -m core.sample_data --output data/sample --seed 20212
+```
+
+제공 워크북을 다시 변환하려면:
+
+```powershell
+python -m core.import_workbook "운양동_악취관측_20260909_20260916.xlsx" --output data/provided
 ```
 
 검증하려면:

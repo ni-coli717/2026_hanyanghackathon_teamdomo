@@ -59,8 +59,18 @@ def make_windows(reports: pd.DataFrame, weather: pd.DataFrame, zones: pd.DataFra
     windows["label"] = np.where(windows.n_observers >= 3, (windows.detected_ratio >= 0.5).astype(float), np.nan)
     wx = normalize_weather(weather)
     wx = wx[wx.quality_flag.eq("ok")].copy()
-    windows["weather_at"] = windows.window_at.dt.floor("h")
-    windows = windows.merge(wx.drop_duplicates("weather_at", keep="last"), on="weather_at", how="left")
+    # AWS 정시자료와 제공된 30분 스냅샷을 모두 받을 수 있도록 관측창 기준
+    # 직전 1시간 이내의 최신 기상을 연결한다.
+    windows["weather_at"] = windows.window_at
+    wx = wx.drop_duplicates("weather_at", keep="last").copy()
+    wx["weather_source_at"] = wx["weather_at"]
+    windows = pd.merge_asof(
+        windows.sort_values("weather_at"),
+        wx.sort_values("weather_at"),
+        on="weather_at",
+        direction="backward",
+        tolerance=pd.Timedelta("1h"),
+    )
     windows["wd"] = windows["wd"].where(windows.ws >= 0.5)
     windows["wd_sin"] = np.sin(np.deg2rad(windows.wd))
     windows["wd_cos"] = np.cos(np.deg2rad(windows.wd))

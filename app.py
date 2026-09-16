@@ -39,7 +39,16 @@ def get_repo() -> SQLiteRepository:
 
 def bootstrap(repo: SQLiteRepository) -> None:
     if repo.read("reports", sample=True).empty:
-        frames = generate_sample_data(DATA_DIR / "sample")
+        provided = DATA_DIR / "provided"
+        if (provided / "reports.csv").exists() and (provided / "weather.csv").exists():
+            frames = {
+                "reports": pd.read_csv(provided / "reports.csv"),
+                "weather": pd.read_csv(provided / "weather.csv"),
+                "sources": pd.read_csv(DATA_DIR / "sample" / "sources.csv"),
+                "zones": pd.read_csv(DATA_DIR / "sample" / "zones.csv"),
+            }
+        else:
+            frames = generate_sample_data(DATA_DIR / "sample")
         for name in ["reports", "weather", "sources", "zones"]:
             repo.replace(name, frames[name], sample=True)
 
@@ -91,7 +100,7 @@ def render_header(sample_mode: bool) -> None:
     with right:
         st.caption("운양동 · KST · 오프라인 지원")
     if sample_mode:
-        st.markdown('<div class="sample-banner">샘플(가상) 데이터 — 실제 관측 결과가 아닙니다</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sample-banner">제공 시나리오(가상) 데이터 — 실제 주민 관측 결과가 아닙니다</div>', unsafe_allow_html=True)
 
 
 def render_home(weather, windows, geometry, probability, method, wx_row, hint):
@@ -332,11 +341,15 @@ def render_settings(repo, sample_mode):
         st.session_state.sample_mode = mode == "샘플"
         st.rerun()
     if sample_mode:
-        st.caption("시드 20212 · 14일 · 참여자 20명 · 구역별 미응답과 D1 방향 신호 포함")
+        st.caption("업로드된 2026-09-09~2026-09-16 시나리오 · 참여자 20명 · 원본 record_origin=simulated")
         if st.button("샘플 데이터 재생성"):
-            frames = generate_sample_data(DATA_DIR / "sample")
+            provided = DATA_DIR / "provided"
+            if (provided / "reports.csv").exists():
+                frames = {"reports":pd.read_csv(provided / "reports.csv"), "weather":pd.read_csv(provided / "weather.csv"), "sources":pd.read_csv(DATA_DIR / "sample" / "sources.csv"), "zones":pd.read_csv(DATA_DIR / "sample" / "zones.csv")}
+            else:
+                frames = generate_sample_data(DATA_DIR / "sample")
             for name in ["reports", "weather", "sources", "zones"]: repo.replace(name, frames[name], sample=True)
-            st.success("같은 시드로 샘플 CSV와 DB를 재생성했습니다.")
+            st.success("제공 시나리오 CSV에서 DB를 다시 구성했습니다.")
             st.rerun()
     st.markdown("#### 실데이터 CSV 가져오기")
     table = st.selectbox("대상", ["reports", "weather", "sources", "zones"])

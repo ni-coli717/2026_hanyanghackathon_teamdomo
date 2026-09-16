@@ -7,4 +7,4 @@ plotly>=5.20
 pydeck>=0.9
 pyserial>=3.5
 pytest>=8.0
-
+openpyxl>=3.1
