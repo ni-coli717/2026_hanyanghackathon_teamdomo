@@ -15,6 +15,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from .config import now_kst
 
 
 NUMERIC_FEATURES = ["wd_sin", "wd_cos", "ws", "temp", "humidity", "rain", "hour_sin", "hour_cos", "is_night", "pressure", "dp_3h", "align_D1", "align_D2", "align_D3"]
@@ -94,7 +95,7 @@ def train_models(windows: pd.DataFrame) -> ModelBundle:
         values = pipe.named_steps["model"].coef_[0] if name == "로지스틱 회귀" else pipe.named_steps["model"].feature_importances_
         for feature, value in zip(feature_names, values):
             importance_rows.append({"모델": name, "변수": feature.replace("num__", "").replace("cat__", ""), "영향도": float(value), "절대 영향도": abs(float(value))})
-    return ModelBundle(models, pd.DataFrame(metrics), confusions, pd.DataFrame(importance_rows), datetime.now().isoformat(timespec="seconds"), len(train), len(test), int(y_test.sum()))
+    return ModelBundle(models, pd.DataFrame(metrics), confusions, pd.DataFrame(importance_rows), now_kst().isoformat(timespec="seconds"), len(train), len(test), int(y_test.sum()))
 
 
 def save_bundle(bundle: ModelBundle, path: str | Path = "data/models/latest.joblib") -> str:
@@ -110,4 +111,3 @@ def load_bundle(path: str | Path = "data/models/latest.joblib") -> ModelBundle |
         return joblib.load(target) if target.exists() else None
     except Exception:
         return None
-

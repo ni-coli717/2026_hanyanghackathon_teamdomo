@@ -41,6 +41,8 @@ def convert_workbook(path: str | Path, output_dir: str | Path = "data/provided")
         "confidence": np.where(odor.isna(), "low", "mid"),
         "saw_forecast": observations["prediction_seen"].fillna(False).astype(int),
         "memo": "제공 시나리오 · 실제 관측 아님",
+        "record_origin": "simulated",
+        "idempotency_key": observations["observation_id"].astype(str).map(lambda x: f"scenario:{x}"),
     })
     if reports[["zone_id", "report_mode"]].isna().any().any():
         raise ValueError("매핑되지 않은 구역 또는 수집 모드가 있습니다.")

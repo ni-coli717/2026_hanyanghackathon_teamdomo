@@ -37,3 +37,8 @@ class ArduinoDevice:
         except Exception:
             return None
 
+    def close(self):
+        try:
+            self.serial.close()
+        except Exception:
+            pass

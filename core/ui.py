@@ -55,7 +55,7 @@ def badge(text: str, color: str = "#1F5C8B") -> str:
 def compass_svg(wd: float | None, ws: float | None, geometry: pd.DataFrame, active_source: str | None, compact: bool = False) -> str:
     size = 225 if compact else 290
     calm = ws is None or pd.isna(ws) or ws < 0.5 or wd is None or pd.isna(wd)
-    needle_rotation = float(wd or 0)
+    needle_rotation = 90 if calm else float(wd)
     rays = []
     for _, row in geometry.iterrows():
         angle = math.radians(row.bearing_deg - 90)
@@ -66,7 +66,7 @@ def compass_svg(wd: float | None, ws: float | None, geometry: pd.DataFrame, acti
         rays.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{"#2E8B74" if active else "#9AA5AE"}" stroke-width="{"5" if active else "2"}" stroke-dasharray="4 4"/><text x="{x2:.1f}" y="{y2-4:.1f}" text-anchor="middle" fill="#526674" font-size="9" font-weight="800">{row.source_id}</text>')
     needle = "#9AA5AE" if calm else "#1F5C8B"
     status = "무풍 · 방향 보류" if calm else f'{wind_name(wd)}풍 {float(wd):.0f}° · {float(ws):.1f}m/s'
-    return f'''<div class="compass-wrap"><svg class="compass-svg" width="{size}" viewBox="0 0 240 260" role="img" aria-label="현재 풍향 나침반">
+    return f'''<div class="compass-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="compass-svg" width="{size}" viewBox="0 0 240 260" role="img" aria-label="현재 풍향 나침반">
       <defs><filter id="s"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity=".12"/></filter></defs>
       <circle cx="120" cy="120" r="106" fill="#FBFCFD" stroke="#D9E3E9" stroke-width="2" filter="url(#s)"/>
       <circle cx="120" cy="120" r="82" fill="none" stroke="#BFCBD2" stroke-width="1" stroke-dasharray="2 5"/>

@@ -1,68 +1,121 @@
-# 냄새 나침반
+# 냄새 나침반 / 냄새 기록
 
-운양동 주민의 냄새 관측과 기상 데이터를 결합해 악취 감지 조건과 가장 관련 높은 유입 방향을 탐색하는 오프라인 우선 Streamlit 앱입니다.
+같은 저장소의 공개 앱 두 개와 인증된 운영자 앱 하나입니다.
 
-> 이 앱의 방향 표시는 유입 가능성 추정이며, 특정 시설이나 농가를 원인으로 판정하지 않습니다.
+| 진입 파일 | 대상 | 기능 |
+| --- | --- | --- |
+| `viewer_app.py` (`app.py`도 동일) | 주민 조회 | 지도·나침반, 구역별 관측, 지난 기록, 생활 대응, 서비스 정보 |
+| `measurement_app.py` | 주민 참여 | 기본값 없는 단계별 설문, 제출 확인, 이 세션의 최근 기록 |
+| `admin_app.py` | 운영자 | 인증 후 기존 분석·모델 비교·학습·CSV 관리·기기 시연 |
 
-## 실행
+공개 앱은 운영자 링크를 제공하지 않습니다. 조회 앱은 과거 시연 자료와 현재 주민 기록을 구분하고, 보정되지 않은 모델 점수를 확률로 표시하지 않습니다.
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-streamlit run app.py
-```
+## 로컬 실행
 
-첫 실행 시 `data/provided/`의 2026-09-09~2026-09-16 제공 시나리오가 로컬 `data/odor.db`에 적재됩니다. 원본 워크북의 `record_origin=simulated` 표기를 보존해 화면 상단에 가상 데이터 배너를 표시하며, 실제 주민 관측으로 표현하지 않습니다. `설정 · 데이터`에서 실데이터 영역으로 전환하거나 CSV를 가져올 수 있습니다.
-
-## 주요 구조
-
-- `app.py`: 상단 네비게이션과 6개 사용자 화면, 설정 화면
-- `core/repo.py`: 향후 Supabase/Google Sheets 구현체로 교체 가능한 저장소 인터페이스
-- `core/sample_data.py`: 고정 시드 샘플 CSV 생성기
-- `core/import_workbook.py`: 제공 XLSX를 앱 스키마로 재현 가능하게 변환
-- `core/features.py`: 30분 관측창, 기상 결합, 구역별 방향 정렬도
-- `core/model.py`: 규칙 기준선, 로지스틱 회귀, 랜덤포레스트, 시간 기준 평가
-- `ext/`: 가상 기기와 선택형 Arduino 직렬 연결
-- `assets/logo.svg`: 나침반 장미와 바람 꼬리 단색 로고
-
-샘플만 다시 만들려면:
+Python 3.11 환경에서 작업 폴더를 연 후 실행합니다.
 
 ```powershell
-python -m core.sample_data --output data/sample --seed 20212
+python -m pip install -r requirements.txt
+$env:APP_ENV = "local"
+$env:DATA_MODE = "demo"
+$env:MEASUREMENT_APP_URL = "http://localhost:8502"
+python -m streamlit run viewer_app.py
 ```
 
-제공 워크북을 다시 변환하려면:
+별도 터미널에서 다음을 실행합니다.
 
 ```powershell
-python -m core.import_workbook "운양동_악취관측_20260909_20260916.xlsx" --output data/provided
+$env:APP_ENV = "local"
+python -m streamlit run measurement_app.py --server.port 8502
 ```
 
-검증하려면:
+로컬의 세 프로세스는 같은 작업 폴더의 `data/resident.db`를 공유합니다. `OBSERVATION_DB_PATH`로 경로를 지정할 수도 있습니다. 조회 앱의 `DATA_MODE=live`는 주민 제출을 표시하고 `demo`는 읽기 전용 제공 시나리오만 표시합니다. 주민 제출을 시나리오 CSV에 섞거나 덮어쓰지 않습니다.
+
+## 설정과 공유 저장소
+
+환경변수가 secrets보다 우선합니다. `.streamlit/secrets.example.toml`을 참고하여 로컬 `secrets.toml` 또는 Cloud의 Secrets를 설정하세요. 실제 secrets 파일은 Git에서 제외됩니다.
+
+```toml
+APP_ENV = "cloud"
+DATA_MODE = "demo"
+MEASUREMENT_APP_URL = "https://YOUR-MEASUREMENT-APP.streamlit.app"
+
+[database]
+url = "https://YOUR-PROJECT.supabase.co"
+key = "SERVER_ONLY_SERVICE_ROLE_KEY"
+
+[admin]
+password_hash = ""
+```
+
+환경변수 대응: `DATABASE_URL`, `DATABASE_KEY`, `ADMIN_PASSWORD_HASH`.
+공유 저장소가 없는 클라우드 모드에서는 제출 버튼이 비활성화되고 저장된 것처럼 표시하지 않습니다. 로컬 디스크 저장을 원하면 명시적으로 `APP_ENV=local`을 설정하세요.
+
+`deployment/supabase.sql`을 본인 Supabase 프로젝트에서 실행하고 두 앱의 database 설정에 같은 URL/key를 입력합니다. RLS가 켜지고 anon/authenticated의 테이블 권한은 차단됩니다. 키는 Python 서버에서만 사용하며 사용자 화면이나 URL에 전달하지 않습니다. 이 작업에서는 실제 외부 서비스 설정을 변경하지 않았습니다.
+
+서로 다른 Streamlit Cloud 앱의 SQLite는 공유되지 않습니다. 두 앱을 운영하려면 공통 Supabase를 설정해야 합니다. 운영자 앱도 동일한 설정으로 주민 제출을 읽습니다.
+
+## 두 공개 앱 배포
+
+같은 GitHub 저장소 / main 브랜치로 Community Cloud 앱을 두 개 생성합니다.
+
+1. 조회 앱: `viewer_app.py`. 기존 `app.py` 진입점도 조회 앱만 실행합니다.
+2. 측정 앱: `measurement_app.py`.
+3. 두 앱의 Python 버전과 database 설정을 동일하게 맞춥니다.
+4. 조회 앱의 `MEASUREMENT_APP_URL`에 측정 앱 주소를 넣습니다.
+5. 실제 주민 기록 조회를 시작할 때 조회 앱의 `DATA_MODE=live`를 설정합니다.
+
+관리자 앱은 공개 배포하지 않고 로컬에서 실행합니다. 기존 조회 사이트는 main 브랜치의 app.py를 사용하므로 main 푸시가 배포 업데이트로 이어집니다. 기록 앱 생성과 공유 DB 설정은 별도로 필요합니다.
+
+## 관리자 인증
 
 ```powershell
-pytest -q
+python -m core.auth
 ```
 
-## 인터넷 공개 배포
+숨김 입력으로 비밀번호를 입력하면 PBKDF2 해시가 생성됩니다. 해시를 secrets의 `admin.password_hash` 또는 `ADMIN_PASSWORD_HASH` 환경변수에 설정한 뒤 실행하세요.
 
-가장 간단한 경로는 Streamlit Community Cloud입니다.
+```powershell
+python -m streamlit run admin_app.py --server.port 8503
+```
 
-1. 이 폴더를 GitHub 저장소의 `main` 브랜치에 푸시합니다.
-2. <https://share.streamlit.io>에서 GitHub로 로그인하고 저장소 접근을 허용합니다.
-3. **Create app → Yup, I have an app**을 선택합니다.
-4. 저장소와 `main` 브랜치를 선택하고 엔트리 파일에 `app.py`를 입력합니다.
-5. Advanced settings에서 Python `3.11`을 선택한 뒤 Deploy를 누릅니다.
+인증 설정이 없으면 데이터 접근 전에 앱이 잠깁니다. 기존 `data/odor.db`, 모델, 통계 코드, CSV 설정, Arduino 스케치를 보존합니다. 운영자 실데이터 분석은 공통 주민 제출을 사용하며, CSV로 가져온 기상은 운영자 로컬 분석용입니다.
 
-공개 데모의 샘플·분석·AI·가상 기기는 그대로 작동합니다. 클라우드에는 물리적인 로컬 USB 포트가 없으므로 Arduino 화면은 자동으로 가상 기기 모드가 됩니다.
+## 데이터 규칙과 출처
 
-Community Cloud의 로컬 파일은 영구 저장소가 아닙니다. 샘플 시연에는 문제가 없지만 실제 주민 기록을 받을 때는 `core/repo.py`의 `Repository` 인터페이스에 Supabase/Postgres 또는 Google Sheets 구현체를 연결해야 합니다. 현재 화면에도 이 제한을 표시합니다.
+- 제공 시나리오: 2026-09-09~16, 관측 655건과 기상 32건. 원본 `record_origin=simulated`이므로 실제 관측 결과로 표현하지 않습니다.
+- 주민 입력: `record_origin=resident`, UUID 기반 `idempotency_key`로 중복 제출 방지.
+- `odor_detected`: true / false / null을 그대로 보존. 무응답은 행 자체가 없음.
+- `scheduled` / `spontaneous` / `followup` 및 실내·실외를 구분. 정기 실외의 판단 가능한 관측만 기본 감지율에 사용.
+- 시각은 KST, 정기 시간은 07:30 / 12:30 / 18:30 / 22:00, ±15분. `core/config.py`에서 관리.
+- 공개 지도에는 구역 대표점만 표시. 개인 위치·실명·연락처는 수집하지 않음.
+- 코드만으로는 본인 인증이 되지 않으므로 ‘내 최근 기록’은 현재 코드 + 현재 세션에서 제출한 기록만 공개.
 
-## 실데이터 CSV
+`core/observations.py`의 공통 인터페이스를 두 앱이 사용합니다. `LocalObservations`와 `SharedObservations`는 같은 저장·조회·집계 메서드를 제공하고 기존 분석 컬럼은 어댑터로 연결합니다.
 
-- 주민 관측: `reports.csv`
-- 기상: 기상자료개방포털 AWS 형식 또는 내부 컬럼 형식
-- 후보 방향: `sources.csv` — 좌표만 저장하며 방위각과 거리는 런타임 계산
-- 관측 구역: `zones.csv`
+## 검증
 
-실명, 주소, 연락처는 스키마에 존재하지 않습니다. `GUEST` 기록은 저장할 수 있지만 학습용 `n_observers`에서는 제외됩니다. 기기 대응 평가는 `device_log`에 저장되어 실외 관측 학습자료와 섞이지 않습니다.
+```powershell
+python -m compileall app.py viewer_app.py measurement_app.py admin_app.py core ext tests
+python -m pytest -q
+```
+
+브라우저 검증용 추가 의존성과 실행법:
+
+```powershell
+python -m pip install playwright
+python -m playwright install chromium
+python tests/browser_check.py
+```
+
+브라우저 검증은 조회 8511 / 측정 8512 로컬 서버가 실행 중일 때 사용합니다. 테스트용 측정 DB는 `artifacts/browser-resident.db`로 별도 설정하세요. 스크린샷은 `artifacts/`에 저장됩니다.
+
+## 알려진 한계
+
+- Supabase 연결은 구현되어 있으나 실제 계정 연결·원격 통합 검증은 아직 하지 않았습니다.
+- 실시간 기상 API는 연결되지 않았습니다. live 주민 화면은 실제 기상이 없으면 방향을 보류합니다. 시연 기상을 실제 기상으로 대체하지 않습니다.
+- 배경 지도와 웹폰트는 인터넷이 필요합니다. 지도 배경을 못 불러오면 구역 선택과 텍스트 요약으로 조회할 수 있습니다.
+- 구역 이름·대표 좌표는 기존 사용자 제공 임시값입니다. 실제 경계 검증은 남아 있습니다.
+- 알림, 오프라인 저장/재전송, 실제 공기청정기 효과 검증은 구현하지 않았습니다.
+- Arduino는 운영자 로컬 시연 기능이며 실제 하드웨어 검증은 별도입니다.
+- 주민 코드 로그인은 없습니다. 영구 개인 기록 조회에는 별도 인증 설계가 필요합니다.

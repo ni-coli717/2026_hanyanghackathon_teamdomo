@@ -29,6 +29,8 @@ def normalize_weather(frame: pd.DataFrame) -> pd.DataFrame:
     for required, default in {"station_id": "(확인필요)", "quality_flag": "ok", "rain": 0}.items():
         if required not in weather:
             weather[required] = default
+    if 'weather_at' not in weather:
+        weather['weather_at'] = pd.Series(dtype='datetime64[ns]')
     weather["weather_at"] = pd.to_datetime(weather["weather_at"], errors="coerce")
     for col in ["wd", "ws", "temp", "humidity", "pressure", "rain"]:
         if col not in weather:
@@ -43,11 +45,15 @@ def make_windows(reports: pd.DataFrame, weather: pd.DataFrame, zones: pd.DataFra
     r = reports.copy()
     r["observed_at"] = pd.to_datetime(r["observed_at"], errors="coerce")
     r["submitted_at"] = pd.to_datetime(r["submitted_at"], errors="coerce")
-    r = r[(r.report_mode == "scheduled") & (r.environment == "outdoor") & (r.observer_code != "GUEST") & r.odor.notna()]
+    r = r[(r.report_mode == "scheduled") & (r.environment == "outdoor") & (r.observer_code != "GUEST")]
     # 정시 관측의 ±30분 허용창을 중앙 시각에 모은다. 21:29와 21:31이
     # 서로 다른 학습창으로 갈라지지 않도록 단순 내림이 아닌 반올림을 쓴다.
     r["window_at"] = r["observed_at"].dt.round("30min")
+    if 'window_id' in r.columns:
+        explicit=pd.to_datetime(r['window_id'],errors='coerce')
+        r['window_at']=explicit.fillna(r['window_at'])
     r = r.sort_values("submitted_at").drop_duplicates(["observer_code", "zone_id", "window_at"], keep="last")
+    r = r[r.odor.notna()]
     if r.empty:
         return pd.DataFrame()
     windows = r.groupby(["zone_id", "window_at"], as_index=False).agg(

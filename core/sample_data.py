@@ -35,7 +35,7 @@ def generate_sample_data(output_dir: str | Path = "data/sample", seed: int = SEE
     ])
     geometry = source_geometry(zones, sources)
 
-    end = pd.Timestamp.now(tz="Asia/Seoul").floor("h")
+    end = pd.Timestamp('2026-09-16 14:00', tz='Asia/Seoul')
     start = (end - pd.Timedelta(days=14)).normalize()
     weather_times = pd.date_range(start, end, freq="h", tz="Asia/Seoul")
     weather_rows = []

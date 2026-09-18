@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS reports (
     zone_id TEXT NOT NULL,
     observed_at TEXT NOT NULL,
     submitted_at TEXT NOT NULL,
-    report_mode TEXT NOT NULL CHECK (report_mode IN ('scheduled', 'extra')),
+    report_mode TEXT NOT NULL CHECK (report_mode IN ('scheduled', 'extra', 'spontaneous', 'followup')),
     odor INTEGER CHECK (odor IN (0, 1)),
     intensity INTEGER NOT NULL CHECK (intensity BETWEEN 0 AND 5),
     odor_type TEXT NOT NULL,
@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS reports (
     confidence TEXT NOT NULL CHECK (confidence IN ('low', 'mid', 'high')),
     saw_forecast INTEGER NOT NULL DEFAULT 0 CHECK (saw_forecast IN (0, 1)),
     memo TEXT DEFAULT '',
+    record_origin TEXT NOT NULL DEFAULT 'resident_local',
+    idempotency_key TEXT,
     is_sample INTEGER NOT NULL DEFAULT 0 CHECK (is_sample IN (0, 1))
 );
 
@@ -88,4 +90,10 @@ CREATE TABLE IF NOT EXISTS device_log (
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(reports)")}
+    if "record_origin" not in columns:
+        conn.execute("ALTER TABLE reports ADD COLUMN record_origin TEXT NOT NULL DEFAULT 'legacy'")
+    if "idempotency_key" not in columns:
+        conn.execute("ALTER TABLE reports ADD COLUMN idempotency_key TEXT")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_idempotency ON reports(idempotency_key) WHERE idempotency_key IS NOT NULL")
     conn.commit()

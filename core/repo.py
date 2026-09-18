@@ -12,7 +12,7 @@ from .schema import init_db
 
 
 TABLE_COLUMNS = {
-    "reports": ["report_id", "observer_code", "zone_id", "observed_at", "submitted_at", "report_mode", "odor", "intensity", "odor_type", "environment", "confidence", "saw_forecast", "memo", "is_sample"],
+    "reports": ["report_id", "observer_code", "zone_id", "observed_at", "submitted_at", "report_mode", "odor", "intensity", "odor_type", "environment", "confidence", "saw_forecast", "memo", "record_origin", "idempotency_key", "is_sample"],
     "weather": ["station_id", "weather_at", "wd", "ws", "temp", "humidity", "pressure", "rain", "quality_flag", "is_sample"],
     "zones": ["zone_id", "name", "rep_lat", "rep_lon", "boundary_note", "is_sample"],
     "sources": ["source_id", "name", "source_type", "lat", "lon", "is_sample"],
@@ -82,6 +82,34 @@ class SQLiteRepository(Repository):
         placeholders = ", ".join("?" for _ in values)
         with self.connection() as conn:
             conn.execute(f"INSERT INTO {table} ({columns}) VALUES ({placeholders})", tuple(values.values()))
+
+    def save_observation(self, observation: dict) -> bool:
+        """멱등 키가 이미 있으면 False, 새로 저장하면 True."""
+        try:
+            self.insert("reports", observation)
+            return True
+        except sqlite3.IntegrityError as exc:
+            if "idempotency" in str(exc).lower() or "unique" in str(exc).lower():
+                return False
+            raise
+
+    def get_recent_observations(self, limit: int = 100, sample: bool | None = None) -> pd.DataFrame:
+        frame = self.read("reports", sample=sample)
+        if frame.empty:
+            return frame
+        return frame.sort_values("observed_at", ascending=False).head(limit)
+
+    def get_observations_by_participant(self, participant_id: str, limit: int = 20) -> pd.DataFrame:
+        with self.connection() as conn:
+            return pd.read_sql_query(
+                "SELECT * FROM reports WHERE observer_code = ? ORDER BY observed_at DESC LIMIT ?",
+                conn, params=(participant_id, int(limit)),
+            )
+
+    def get_window_aggregates(self, sample: bool | None = None) -> pd.DataFrame:
+        from .features import make_windows
+        return make_windows(self.read('reports',sample),self.read('weather',sample),
+                            self.read('zones',sample),self.read('sources',sample))
 
     @staticmethod
     def _check_table(table: str) -> None:

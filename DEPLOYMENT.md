@@ -1,34 +1,19 @@
-# Streamlit Community Cloud 배포 체크리스트
+# 두 공개 앱 배포 안내
 
-## GitHub에 올리기
+기존 조회 사이트는 GitHub main 브랜치의 app.py로 실행됩니다. main에 변경을 푸시하면 연결된 Community Cloud에서 업데이트합니다. 기록 앱은 measurement_app.py를 진입 파일로 별도 생성해야 합니다.
 
-GitHub에서 빈 저장소(권장 이름: `odor-compass`)를 만든 뒤 이 폴더에서 실행합니다.
+| 앱 | 같은 저장소의 진입 파일 |
+| --- | --- |
+| 냄새 나침반 (조회) | viewer_app.py — 기존 app.py도 동일한 조회 앱 |
+| 냄새 기록 (측정) | measurement_app.py |
+| 운영자 (로컬 비공개) | admin_app.py |
 
-```powershell
-git remote add origin https://github.com/YOUR_ID/odor-compass.git
-git push -u origin main
-```
+Community Cloud에서 같은 저장소로 두 앱을 만든 후 조회 앱 Secrets의 MEASUREMENT_APP_URL에 측정 앱 URL을 입력합니다. Python 3.11을 선택합니다.
 
-GitHub가 비밀번호를 요구하면 일반 비밀번호가 아니라 브라우저 로그인 또는 Personal Access Token을 사용합니다.
+두 앱에서 APP_ENV=cloud, 같은 database.url / database.key를 설정합니다. Supabase에 직접 deployment/supabase.sql을 실행해 테이블을 먼저 준비합니다. 키는 서버 전용 service role이며 공개하지 않습니다.
 
-## Streamlit에 연결하기
+DATA_MODE=demo는 원본 시나리오만 읽습니다. 주민 제출은 별도 테이블에 기록됩니다. DATA_MODE=live로 전환하면 두 앱이 같은 주민 제출을 조회합니다. 독립 배포의 SQLite 파일은 공유되지 않습니다. 공유 백엔드가 없는 클라우드에서는 저장 버튼이 비활성화됩니다.
 
-1. <https://share.streamlit.io> 접속
-2. GitHub 로그인 및 저장소 접근 승인
-3. **Create app → Yup, I have an app**
-4. Repository: `YOUR_ID/odor-compass`
-5. Branch: `main`
-6. Main file path: `app.py`
-7. Advanced settings → Python `3.11`
-8. Deploy
+관리자 앱은 공개 메뉴에서 연결하지 않습니다. python -m core.auth로 생성한 해시를 admin.password_hash에 설정한 뒤 로컬에서 실행합니다. 비밀 설정은 Git에 커밋하지 않습니다.
 
-배포 후 `https://원하는이름.streamlit.app` 주소를 공유할 수 있습니다.
-
-## 현재 배포 특성
-
-- 공개 샘플 시연: 가능
-- AI 학습/재학습: 가능하나 컨테이너 재시작 시 모델 파일 초기화 가능
-- 주민 기록: 실행 중에는 가능하나 SQLite가 영구 저장되지 않음
-- Arduino: 클라우드에서는 USB 포트가 없어 자동 시뮬레이션
-- 장기 주민 수집: `Repository`의 Supabase/Postgres 구현이 필요
-
+현재 live 기상 API와 실제 Supabase 계정 연동 검증은 남아 있습니다. 설정 전체와 로컬 명령은 README.md 및 .streamlit/secrets.example.toml을 참고하세요.

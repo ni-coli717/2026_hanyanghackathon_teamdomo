@@ -5,3 +5,7 @@ __pycache__/
 data/odor.db
 data/models/
 exports/
+.streamlit/secrets.toml
+data/*.db*
+artifacts/
+node_modules/
