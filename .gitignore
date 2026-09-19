@@ -9,3 +9,7 @@ exports/
 data/*.db*
 artifacts/
 node_modules/
+
+# odor_model ships its trained artifacts
+!odor_model/artifacts/
+data/device_status.json

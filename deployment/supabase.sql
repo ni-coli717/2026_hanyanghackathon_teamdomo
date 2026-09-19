@@ -12,10 +12,13 @@ create table if not exists public.observations (
  collection_mode text not null check (collection_mode in ('scheduled','spontaneous','followup')),
  prediction_seen boolean not null default false,
  window_id text not null,
- record_origin text not null check (record_origin='resident'),
+ record_origin text not null check (record_origin in ('resident','device_button')),
  idempotency_key uuid not null unique
 );
 alter table public.observations enable row level security;
 revoke all on public.observations from anon, authenticated;
 grant all on public.observations to service_role;
 create index if not exists observations_participant on public.observations(participant_id, observed_at desc);
+-- 기존 테이블이 있으면 한 번 실행: 공기질 관리 기기 버튼 제보(record_origin='device_button') 허용
+alter table public.observations drop constraint if exists observations_record_origin_check;
+alter table public.observations add constraint observations_record_origin_check check (record_origin in ('resident','device_button'));

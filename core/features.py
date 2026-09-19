@@ -39,6 +39,20 @@ def normalize_weather(frame: pd.DataFrame) -> pd.DataFrame:
     return weather.dropna(subset=["weather_at"]).sort_values("weather_at")
 
 
+def window_id_time(values: pd.Series) -> pd.Series:
+    """Workbook ids ('W-20260915-2200') or live ISO timestamps -> naive window time; else NaT."""
+    text = values.astype(str).str.extract(r"^W-(\d{8}-\d{4})$")[0]
+    coded = pd.to_datetime(text, format="%Y%m%d-%H%M", errors="coerce")
+    def parse(value):
+        try:
+            moment = pd.Timestamp(value)
+        except (TypeError, ValueError):
+            return pd.NaT
+        return moment.tz_convert("Asia/Seoul").tz_localize(None) if moment.tzinfo else moment
+    other = pd.Series([parse(v) for v in values.where(text.isna(), None)], index=values.index, dtype="datetime64[ns]")
+    return coded.astype("datetime64[ns]").fillna(other)
+
+
 def make_windows(reports: pd.DataFrame, weather: pd.DataFrame, zones: pd.DataFrame, sources: pd.DataFrame) -> pd.DataFrame:
     if reports.empty:
         return pd.DataFrame()
@@ -50,7 +64,7 @@ def make_windows(reports: pd.DataFrame, weather: pd.DataFrame, zones: pd.DataFra
     # 서로 다른 학습창으로 갈라지지 않도록 단순 내림이 아닌 반올림을 쓴다.
     r["window_at"] = r["observed_at"].dt.round("30min")
     if 'window_id' in r.columns:
-        explicit=pd.to_datetime(r['window_id'],errors='coerce')
+        explicit=window_id_time(r['window_id'])
         r['window_at']=explicit.fillna(r['window_at'])
     r = r.sort_values("submitted_at").drop_duplicates(["observer_code", "zone_id", "window_at"], keep="last")
     r = r[r.odor.notna()]
@@ -67,8 +81,9 @@ def make_windows(reports: pd.DataFrame, weather: pd.DataFrame, zones: pd.DataFra
     wx = wx[wx.quality_flag.eq("ok")].copy()
     # AWS 정시자료와 제공된 30분 스냅샷을 모두 받을 수 있도록 관측창 기준
     # 직전 1시간 이내의 최신 기상을 연결한다.
-    windows["weather_at"] = windows.window_at
+    windows["weather_at"] = windows.window_at.astype("datetime64[ns]")
     wx = wx.drop_duplicates("weather_at", keep="last").copy()
+    wx["weather_at"] = wx["weather_at"].astype("datetime64[ns]")
     wx["weather_source_at"] = wx["weather_at"]
     windows = pd.merge_asof(
         windows.sort_values("weather_at"),

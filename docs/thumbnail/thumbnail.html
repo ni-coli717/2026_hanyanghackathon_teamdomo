@@ -1,0 +1,59 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><style>
+*{margin:0;box-sizing:border-box}
+body{width:1280px;height:720px;overflow:hidden;font-family:"Malgun Gothic","NanumGothic",sans-serif;background:#0f2a3f;color:#fff;position:relative}
+.bg{position:absolute;inset:0}
+.left{position:absolute;left:72px;top:78px;width:640px}
+.tag{display:inline-flex;align-items:center;gap:10px;background:rgba(217,119,6,.18);border:1.5px solid #f59e0b;color:#fcd34d;font-weight:700;font-size:22px;padding:8px 18px;border-radius:30px}
+.tag i{width:10px;height:10px;border-radius:50%;background:#f59e0b;box-shadow:0 0 12px #f59e0b}
+h1{font-size:74px;line-height:1.14;font-weight:900;letter-spacing:-2.5px;margin-top:30px}
+h1 em{font-style:normal;color:#fbbf24}
+.sub{font-size:27px;line-height:1.5;color:#c7d8e6;margin-top:26px;font-weight:600;letter-spacing:-.5px}
+.brand{position:absolute;left:72px;bottom:62px;display:flex;align-items:center;gap:16px}
+.brand svg{width:58px;height:58px}
+.brand b{font-size:40px;font-weight:900;letter-spacing:-1px}
+.brand span{display:block;font-size:17px;color:#8fb3cc;font-weight:600;letter-spacing:1px}
+.chips{position:absolute;left:430px;bottom:74px;display:flex;gap:10px}
+.chips div{font-size:19px;font-weight:700;padding:8px 16px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22)}
+</style></head><body>
+<svg class="bg" viewBox="0 0 1280 720">
+ <defs>
+  <radialGradient id="glow" cx="72%" cy="48%" r="55%"><stop offset="0" stop-color="#1f5c8b"/><stop offset="1" stop-color="#0f2a3f"/></radialGradient>
+  <radialGradient id="warm" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f59e0b" stop-opacity=".35"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+  <marker id="head" viewBox="0 0 20 20" refX="10" refY="10" markerWidth="7" markerHeight="7" orient="auto"><path d="M3 3L15 10L3 17" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linejoin="round"/></marker>
+ </defs>
+ <rect width="1280" height="720" fill="url(#glow)"/>
+ <!-- faint map grid & river -->
+ <g stroke="#ffffff" stroke-opacity=".05" stroke-width="1">
+  <path d="M640 0V720M760 0V720M880 0V720M1000 0V720M1120 0V720M1240 0V720M600 120H1280M600 240H1280M600 360H1280M600 480H1280M600 600H1280"/>
+ </g>
+ <path d="M1280 70C1150 150 1080 150 1010 230S880 420 760 470 620 560 560 720" fill="none" stroke="#3b82c4" stroke-opacity=".35" stroke-width="46" stroke-linecap="round"/>
+ <text x="1150" y="118" fill="#8fb3cc" fill-opacity=".7" font-size="20" font-weight="700" font-family="Malgun Gothic">고양 구산동</text>
+ <text x="700" y="330" fill="#8fb3cc" fill-opacity=".7" font-size="20" font-weight="700" font-family="Malgun Gothic">김포 운양동</text>
+ <circle cx="1175" cy="150" r="90" fill="url(#warm)"/>
+ <!-- odor flow lines with repeated heads -->
+ <g stroke="#fbbf24" stroke-width="7" stroke-linecap="round" fill="none" marker-mid="url(#head)" marker-end="url(#head)">
+  <polyline points="1210,120 1140,175 1070,230 1000,285" opacity=".95"/>
+  <polyline points="1250,210 1180,265 1110,320" opacity=".75"/>
+  <polyline points="1130,60 1060,115 990,170 920,225 850,280" opacity=".6"/>
+ </g>
+ <!-- compass -->
+ <g transform="translate(960 440)">
+  <circle r="150" fill="#ffffff" fill-opacity=".96"/>
+  <circle r="118" fill="none" stroke="#c9d6e0" stroke-width="2" stroke-dasharray="3 9"/>
+  <g font-family="Malgun Gothic" font-weight="900" font-size="26" fill="#1f5c8b" text-anchor="middle"><text y="-118">북</text><text x="124" y="9">동</text><text y="137">남</text><text x="-124" y="9">서</text></g>
+  <g transform="rotate(45)"><path d="M0 -118L20 12L0 -2L-20 12Z" fill="#d97706"/><path d="M0 118L-14 -4L0 6L14 -4Z" fill="#cbd5e1"/></g>
+  <circle r="12" fill="#fff" stroke="#1f5c8b" stroke-width="5"/>
+ </g>
+ <g transform="translate(1062 590)">
+  <rect x="-10" y="-30" width="220" height="48" rx="24" fill="#d97706"/>
+  <text x="100" y="3" text-anchor="middle" fill="#fff" font-family="Malgun Gothic" font-weight="900" font-size="22">북동쪽에서 유입!</text>
+ </g>
+</svg>
+<div class="left">
+ <div class="tag"><i></i>김포 운양동 · 주민 참여 AI</div>
+ <h1>그 냄새,<br><em>어디서</em> 오는지<br>이제 보인다</h1>
+ <div class="sub">주민 제보 + 바람 데이터로<br>악취가 들어오는 방향을 추적합니다</div>
+</div>
+<div class="brand"><svg viewBox="0 0 64 64"><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="27" stroke-width="3.5"/><path d="M32 14l7 21-7 15-7-15z" fill="#fbbf24" stroke="#fbbf24" stroke-width="2"/></g></svg><div><b>냄새 나침반</b><span>ODOR COMPASS</span></div></div>
+<div class="chips"><div>🗺 유입 방향 지도</div><div>🔮 AI 악취 예보</div><div>🌀 공기청정기 자동 대응</div></div>
+</body></html>

@@ -357,6 +357,126 @@ def render_device(repo, probability, level):
         st.toast("대응 후 평가가 별도 기록으로 저장되었습니다.", icon="✅")
 
 
+def evaluation_markdown(path):
+    """Date ranges use '~'; Streamlit markdown would turn '~a~b' into strikethrough."""
+    return path.read_text(encoding="utf-8").replace("~", r"\~") if path.exists() else "평가 파일 없음"
+
+
+def render_odor_model():
+    """odor_model: evaluation, retraining, operating settings and provisional coordinates."""
+    import subprocess, sys
+    from core import analysis_service as service
+    st.markdown(section("예측 모델", "주민 화면의 화살표·나침반·공기질 관리가 모두 이 모델 결과를 사용합니다."), unsafe_allow_html=True)
+    settings = service.load_settings()
+    model, info = service.load_model()
+    active = settings["active_model"]
+    state_note = "정상" if info["ok"] else f"추정 보류 · {info['reason']}"
+    high = f"{settings.get('thr_high') or info.get('thr_valid', 0.75):.2f}"
+    cards = (card("주민 화면 모델", "번들" if active == "bundled" else active, "예비 실험·미보정")
+             + card("로딩 상태", state_note, info["path"], "risk-low" if info["ok"] else "risk-hold")
+             + card("높음 임계값", high, "운영 설정 · 공인 기준 아님"))
+    st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+    evaluation, retrain, config, coords, device_tab = st.tabs(["평가", "재학습", "운영 설정", "좌표", "기기"])
+
+    with evaluation:
+        st.markdown(badge("번들 평가 · odor_model/artifacts", "#667985"), unsafe_allow_html=True)
+        st.markdown(evaluation_markdown(service.BUNDLED_EVALUATION))
+        for run in service.retrained_runs():
+            with st.expander(f"재학습 평가 · {run}" + (" · 주민 화면 적용 중" if run == active else "")):
+                path = service.RETRAINED_DIR / run / "evaluation.md"
+                st.markdown(evaluation_markdown(path))
+
+    with retrain:
+        workbooks = sorted((DATA_DIR / "provided").glob("*.xlsx"))
+        if not workbooks:
+            st.warning("data/provided에 관측 워크북(xlsx)이 없습니다.")
+        else:
+            source = st.selectbox("학습 자료", workbooks, format_func=lambda p: p.name)
+            st.caption("새 모델은 data/models/odor/<시각>에 따로 저장됩니다. 아래에서 선택해 적용하기 전까지 주민 화면은 바뀌지 않습니다.")
+            if st.button("모델 재학습", type="primary"):
+                out = service.RETRAINED_DIR / datetime.now().strftime("%Y%m%d-%H%M%S")
+                with st.spinner("학습 중"):
+                    done = subprocess.run([sys.executable, "-m", "odor_model.train", "--data", str(source), "--out", str(out),
+                                           "--geo", str(service.GEO_PATH)], cwd=str(service.ROOT), capture_output=True,
+                                          text=True, encoding="utf-8", errors="replace", timeout=900)
+                if done.returncode == 0:
+                    st.success(f"재학습 완료 · {out.name} · 기존 평가와 별도로 저장했습니다.")
+                else:
+                    st.error("재학습 실패")
+                    st.code(done.stderr[-3000:])
+        options = ["bundled"] + service.retrained_runs()
+        choice = st.selectbox("주민 화면에 쓸 모델", options, index=options.index(active) if active in options else 0,
+                              format_func=lambda v: "번들 모델(odor_model/artifacts)" if v == "bundled" else f"재학습 · {v}")
+        if st.button("주민 화면에 적용", disabled=choice == active):
+            candidate, check = service.load_model(choice)
+            if candidate is None:
+                st.error(f"적용하지 않았습니다 · {check['reason']}")
+            else:
+                service.save_settings({**settings, "active_model": choice})
+                st.success("적용했습니다. 조회 앱은 다음 새로고침부터 이 모델을 씁니다.")
+                st.rerun()
+
+    with config:
+        st.markdown(badge("운영 설정 · 공인 기준 아님", "#9A6B1F"), unsafe_allow_html=True)
+        a, b = st.columns(2)
+        thr_mid = a.number_input("보통 임계값", 0.05, 0.95, float(settings["thr_mid"]), 0.05)
+        thr_high = b.number_input("높음 임계값", 0.05, 0.99, float(settings.get("thr_high") or info.get("thr_valid", 0.75)), 0.05)
+        calm = a.number_input("약풍 기준 (m/s)", 0.0, 3.0, float(settings["calm_ms"]), 0.1)
+        align = b.number_input("정렬도 최소", 0.0, 1.0, float(settings["align_min"]), 0.05)
+        obs = a.number_input("바람 레이어 전환 감지율", 0.0, 1.0, float(settings["obs_rate_min"]), 0.05)
+        start_n = b.number_input("on_streak · 켜기: 높음 연속 횟수", 1, 6, int(settings["auto"]["start_count"]))
+        stop_n = a.number_input("off_streak · 끄기: 낮음 연속 횟수", 1, 6, int(settings["auto"]["stop_count"]))
+        new = {**settings, "thr_mid": thr_mid, "thr_high": thr_high, "calm_ms": calm, "align_min": align, "obs_rate_min": obs,
+               "auto": {**settings["auto"], "start_count": int(start_n), "stop_count": int(stop_n)}}
+        changed = new != settings
+        if changed:
+            st.warning("운영 설정·공인 기준 아님 · 저장하면 주민 화면의 표시 기준이 바뀝니다.")
+        if thr_mid >= thr_high:
+            st.error("보통 임계값은 높음 임계값보다 작아야 합니다.")
+        if st.button("설정 저장", disabled=not changed or thr_mid >= thr_high):
+            service.save_settings(new)
+            st.success("저장했습니다 · 운영 설정·공인 기준 아님")
+            st.rerun()
+
+    with coords:
+        geo = service.load_geo()
+        st.markdown(badge("임시 좌표", "#9A6B1F"), unsafe_allow_html=True)
+        st.caption("구역 대표점과 후보 지역은 운영자가 검증해야 합니다. 후보는 지역·시설 유형 수준으로만 적습니다. 후보 ID는 모델 특징과 연결되어 바꿀 수 없습니다.")
+        zones_df = pd.DataFrame([{"id": k, **v} for k, v in geo["zones"].items()])
+        cands_df = pd.DataFrame([{"id": k, **v} for k, v in geo["candidates"].items()])
+        zones_edit = st.data_editor(zones_df, disabled=["id", "app_zone_id"], hide_index=True, key="geo_zones", use_container_width=True)
+        cands_edit = st.data_editor(cands_df, disabled=["id", "app_source_id"], hide_index=True, key="geo_cands", use_container_width=True)
+        if st.button("좌표 저장"):
+            clean = lambda row: {k: (float(v) if k in ("lat", "lon") else v) for k, v in row.items() if k != "id" and pd.notna(v)}
+            updated = {**geo, "provisional": True,
+                       "zones": {r["id"]: clean(r) for r in zones_edit.to_dict("records")},
+                       "candidates": {r["id"]: clean(r) for r in cands_edit.to_dict("records")}}
+            service.save_geo(updated)
+            st.success("저장했습니다 · 임시 좌표")
+            st.rerun()
+
+    with device_tab:
+        from core.device import read_status
+        st.markdown(badge("운영 설정 · 공인 기준 아님", "#9A6B1F"), unsafe_allow_html=True)
+        st.caption("공기질 관리 기기는 주민 조회 앱 프로세스가 USB로 연결합니다. 이 화면은 그 앱이 남긴 상태 파일(data/device_status.json)을 읽기만 합니다. "
+                   f"켜기·끄기 규칙: 높음 {settings['auto']['start_count']}회 연속 켜기, 낮음 {settings['auto']['stop_count']}회 연속 끄기, 자료 없음은 판단 보류.")
+        status = read_status()
+        if not status:
+            st.info("연결된 기기 없음 · 조회 앱에서 아직 기기를 연결한 적이 없습니다.")
+        else:
+            fan = {True: "가동 중", False: "대기 중"}.get(status.get("device_fan"), "기기 상태 알 수 없음") if status.get("connected") else "기기 상태 알 수 없음"
+            port = (status.get("port") or "없음") + (" · 시뮬레이터" if status.get("simulator") else "")
+            cards = (card("기기 상태", status.get("status", "—"), f"{fan} · {status.get('mode', '—')}")
+                     + card("포트", port, f"기록 시각 {status.get('updated', '—')}")
+                     + card("마지막 ACK", status.get("last_ack") or "없음", status.get("last_ack_at") or ""))
+            st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+            st.markdown(f"**마지막 오류** · {status.get('last_error') or '없음'} · 기기 버튼 제보 저장 {status.get('reports_saved', 0)}건")
+            log = pd.DataFrame(status.get("log") or [], columns=["at", "dir", "line"])
+            st.dataframe(log.iloc[::-1].rename(columns={"at": "시각", "dir": "방향", "line": "내용"}), hide_index=True, use_container_width=True)
+            if st.button("새로 고침"):
+                st.rerun()
+
+
 def render_settings(repo, sample_mode):
     st.markdown(section("설정 · 데이터", "샘플과 실데이터는 SQLite 안에서도 분리 저장됩니다."), unsafe_allow_html=True)
     st.warning("공개 클라우드의 로컬 SQLite는 임시 저장소입니다. 앱 재시작·재배포 시 주민 기록이 사라질 수 있으므로, 실제 주민 수집 전에는 repo.py에 Supabase 또는 Google Sheets 구현체를 연결해야 합니다.")
@@ -365,7 +485,7 @@ def render_settings(repo, sample_mode):
         st.session_state.sample_mode = mode == "샘플"
         st.rerun()
     if sample_mode:
-        st.caption("업로드된 2026-09-09~2026-09-16 시나리오 · 참여자 20명 · 원본 record_origin=simulated")
+        st.caption("제공 워크북 2026-06-18~2026-09-16 시나리오 · 참여자 20명 · 원본 record_origin=simulated")
         if st.button("샘플 데이터 재생성"):
             provided = DATA_DIR / "provided"
             if (provided / "reports.csv").exists():
@@ -409,7 +529,7 @@ hint = direction_hint(wx_row, geometry.query("zone_id == 'Z2'")) if wx_row is no
 level = risk_level(probability)
 
 render_header(sample_mode)
-pages = ["④ 분석·방향", "⑤ AI 실험", "⑥ 우리 집 대응", "⚙ 설정"]
+pages = ["④ 분석·방향", "⑤ AI 실험", "⑥ 우리 집 대응", "⑦ 예측 모델", "⚙ 설정"]
 if st.session_state.page not in pages: st.session_state.page = pages[0]
 page = st.radio("화면", pages, index=pages.index(st.session_state.page), horizontal=True, label_visibility="collapsed", key="top_navigation")
 st.session_state.page = page
@@ -420,6 +540,7 @@ elif page == "③ 냄새 기록": render_record(repo, sample_mode, zones)
 elif page == "④ 분석·방향": render_analysis(reports, windows, sources)
 elif page == "⑤ AI 실험": render_ai(repo, windows, sample_mode)
 elif page == "⑥ 우리 집 대응": render_device(repo, probability, level)
+elif page == "⑦ 예측 모델": render_odor_model()
 else: render_settings(repo, sample_mode)
 
 st.divider()

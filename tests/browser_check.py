@@ -1,38 +1,18 @@
 """Run against local viewer :8511 and measurement :8512; writes only test observations."""
 from pathlib import Path
 import json
-import re
 from playwright.sync_api import sync_playwright, expect
+from browser_map_check import check as check_map
 
 
 def check():
+    check_map()
     out=Path('artifacts'); out.mkdir(exist_ok=True)
     results=[]
     with sync_playwright() as p:
         browser=p.chromium.launch(headless=True,args=['--enable-unsafe-swiftshader'])
         for width,height in [(1440,1000),(390,844)]:
             page=browser.new_page(viewport={'width':width,'height':height})
-            page.goto('http://localhost:8511',wait_until='domcontentloaded')
-            expect(page.get_by_text('최근 관측 상태',exact=True)).to_be_visible(timeout=60000)
-            page.wait_for_function("document.querySelector('.compass-svg')?.naturalWidth > 0")
-            page.wait_for_selector('.js-plotly-plot canvas')
-            page.wait_for_timeout(1500)
-            page.screenshot(path=str(out/f'viewer-{width}.png'),full_page=True)
-            overflow=page.evaluate('document.documentElement.scrollWidth > window.innerWidth')
-            assert not overflow, f'viewer overflow {width}'
-            assert page.locator('.compass-svg').count()==1
-            box=page.locator('.compass-svg').bounding_box()
-            assert box['y']+box['height'] < height
-            assert page.get_by_text('AI 실험',exact=True).count()==0
-            point=page.locator('.js-plotly-plot').evaluate('''gd => {
-                const map=gd._fullLayout.map._subplot.map;
-                const p=map.project([126.680,37.654]);
-                const r=map.getCanvas().getBoundingClientRect();
-                return {x:r.x+p.x,y:r.y+p.y};
-            }''')
-            page.mouse.click(point['x'],point['y'])
-            expect(page.get_by_role('combobox')).to_have_attribute('aria-label', re.compile('운양역 인근'),timeout=15000)
-            results.append({'app':'viewer','width':width,'overflow':overflow,'compass':True})
             page.goto('http://localhost:8512',wait_until='domcontentloaded')
             expect(page.get_by_text('처음 한 번만 알려주세요',exact=True)).to_be_visible(timeout=30000)
             page.get_by_label('참여자 코드',exact=True).fill('BROWSER_TEST')

@@ -43,6 +43,7 @@ def convert_workbook(path: str | Path, output_dir: str | Path = "data/provided")
         "memo": "제공 시나리오 · 실제 관측 아님",
         "record_origin": "simulated",
         "idempotency_key": observations["observation_id"].astype(str).map(lambda x: f"scenario:{x}"),
+        "window_id": observations["window_id"].astype(str),
     })
     if reports[["zone_id", "report_mode"]].isna().any().any():
         raise ValueError("매핑되지 않은 구역 또는 수집 모드가 있습니다.")
@@ -60,19 +61,29 @@ def convert_workbook(path: str | Path, output_dir: str | Path = "data/provided")
         "pressure": np.nan,
         "rain": snapshots["rain_rolling_1h_mm"],
         "quality_flag": "ok",
+        "weather_basis": snapshots["weather_basis"],
+    })
+    agg = pd.read_excel(path, sheet_name="시간창집계")
+    windows = pd.DataFrame({
+        "window_id": agg["window_id"].astype(str),
+        "window_start": pd.to_datetime(agg["window_start"]).dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "valid_records": agg["valid_records"], "detected_records": agg["detected_records"],
+        "detection_rate": agg["detection_rate"], "group_label": agg["group_label"],
+        "weather_basis": agg["weather_basis"], "record_origin": agg["record_origin"],
     })
     reports.to_csv(out / "reports.csv", index=False, encoding="utf-8-sig")
     weather.to_csv(out / "weather.csv", index=False, encoding="utf-8-sig")
+    windows.to_csv(out / "windows.csv", index=False, encoding="utf-8-sig")
     pd.DataFrame([{
         "source_file": path.name,
         "record_origin": "simulated",
-        "scenario_seed": int(observations["scenario_seed"].iloc[0]),
+        "scenario_seed": " · ".join(map(str, sorted(observations["scenario_seed"].unique()))),
         "report_rows": len(reports),
         "weather_rows": len(weather),
         "station_id": referenced_station,
         "notice": "제공 파일 자체가 simulated로 표시되어 실제 주민 관측으로 사용하지 않음",
     }]).to_csv(out / "provenance.csv", index=False, encoding="utf-8-sig")
-    return {"reports": reports, "weather": weather}
+    return {"reports": reports, "weather": weather, "windows": windows}
 
 
 if __name__ == "__main__":
@@ -81,4 +92,4 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="data/provided")
     args = parser.parse_args()
     result = convert_workbook(args.workbook, args.output)
-    print(f"reports={len(result['reports'])}, weather={len(result['weather'])}")
+    print(f"reports={len(result['reports'])}, weather={len(result['weather'])}, windows={len(result['windows'])}")

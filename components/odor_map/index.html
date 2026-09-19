@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>냄새 나침반 지도</title>
+<link rel="stylesheet" href="vendor/leaflet.css"><link rel="stylesheet" href="map.css"></head>
+<body>
+<main id="shell">
+ <nav aria-label="주 메뉴" id="nav">
+  <div class="brand" title="냄새 나침반"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><path d="M26 10L22 23L10 29L17 17Z"/><path d="M21 24Q28 30 31 23"/></svg></div>
+  <button data-panel="map" class="active"><span class="nav-icon">▱</span>지도</button>
+  <button data-panel="air"><span class="nav-icon">≋</span>공기질 관리</button>
+  <button data-panel="record"><span class="nav-icon">＋</span>냄새 기록</button>
+  <button data-panel="help"><span class="nav-icon">?</span>도움말</button>
+  <span class="nav-bottom">냄새<br>나침반</span>
+ </nav>
+ <section id="workspace" aria-label="김포 냄새 지도">
+  <div id="map" aria-label="지도. 위치 선택 버튼을 누른 뒤 지도를 클릭하세요."></div>
+  <div id="topbar">
+   <div class="card location-card">
+    <div class="row"><span class="eyebrow">김포 · 냄새 나침반</span><span id="demo" class="badge">시연</span></div>
+    <div class="row location-title"><span class="blue-dot"></span><strong id="location-name">운양역 인근</strong></div>
+    <div class="location-actions"><button id="locate">◎ 내 위치</button><button id="pick">⌖ 위치 선택</button></div>
+    <div id="summary" role="status"></div>
+   </div>
+   <div class="card filters"><span class="eyebrow">냄새 유형 · 추정</span><div role="group" aria-label="냄새 유형 필터" id="filters">
+    <button data-filter="all" class="active">전체</button><button data-filter="livestock">축산계</button><button data-filter="sewage">하수계</button><button data-filter="other">기타</button><button data-filter="unknown">미확인</button>
+   </div></div>
+  </div>
+  <div id="notice" class="card" role="status" hidden></div>
+  <div id="tile-error" class="card" role="alert" hidden><strong>지도 연결 실패</strong><span>인터넷 연결을 확인하세요</span><button id="retry">다시 시도</button></div>
+  <div id="map-controls" class="card" aria-label="지도 조작">
+   <button id="zoom-in" aria-label="확대">＋</button><button id="zoom-out" aria-label="축소">−</button>
+   <button id="recenter">선택<br>위치</button><button id="overview">김포<br>전체</button>
+  </div>
+  <div class="card" id="legend"><button id="legend-help">추정 방향 ⓘ</button><span class="legend-key">마커 관측 · 화살표 추정</span><span id="layer-label">이동 방향</span></div>
+  <section class="card" id="compass" aria-label="선택 시각 나침반">
+   <button id="compass-toggle" aria-expanded="true"><strong id="compass-title">선택 위치</strong><span id="compass-status" class="badge">자료 부족</span></button>
+   <div id="compass-body"><svg id="rose" viewBox="0 0 160 160" role="img" aria-label="북쪽 고정 나침반">
+    <circle cx="80" cy="80" r="64" fill="#f8fafc" stroke="#d7e1e8"/><circle cx="80" cy="80" r="48" fill="none" stroke="#d7e1e8" stroke-dasharray="2 6"/>
+    <g fill="#657585" font-size="11" text-anchor="middle"><text x="80" y="12">북</text><text x="151" y="84">동</text><text x="80" y="157">남</text><text x="9" y="84">서</text></g>
+    <g id="needle"><path d="M80 24L89 85L80 79L71 85Z" fill="currentColor"/><path d="M80 136L73 79L80 85L87 79Z" fill="#cbd5e1"/></g><circle cx="80" cy="80" r="5" fill="white" stroke="#1f5c8b" stroke-width="2"/>
+   </svg><div class="compass-copy"><span class="eyebrow">들어오는 방향</span><strong id="direction">방향 미확인</strong><span id="multi" class="badge" hidden>여러 방향 가능</span><span id="type-label"></span><span><span id="model-badge" class="badge model">예비 실험·미보정</span></span><span id="compass-at" class="muted"></span><span class="muted timing-label" id="timing-label">선택 시각 기준</span></div></div>
+  </section>
+  <aside id="panel" class="card" hidden aria-label="상세 정보"><div class="panel-head"><h2 id="panel-title"></h2><button id="close-panel" aria-label="닫기">×</button></div><div id="panel-content"></div></aside>
+  <section id="timeline" class="card" aria-label="시간 선택">
+   <div class="timeline-heading"><strong id="time-label">자료 없음</strong><span id="time-mode" class="badge"></span><span id="basis" class="badge" hidden></span><span class="muted" id="future">미래 자료 없음</span><button id="latest">최신</button></div>
+   <div class="timeline-controls"><button id="previous" aria-label="이전 시각">‹</button><button id="play" aria-label="재생">▷</button><input id="time-slider" type="range" min="0" max="0" value="0" step="1" aria-label="관측 시각"><button id="next" aria-label="다음 시각">›</button></div>
+  </section>
+ </section>
+</main>
+<script src="vendor/leaflet.js"></script><script src="map.js"></script>
+</body></html>

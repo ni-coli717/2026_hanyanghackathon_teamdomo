@@ -1,0 +1,15 @@
+{
+  "active_model": "bundled",
+  "thr_mid": 0.5,
+  "thr_high": null,
+  "calm_ms": 0.5,
+  "align_min": 0.5,
+  "align_tie": 0.15,
+  "obs_rate_min": 0.25,
+  "auto": {
+    "start_level": "높음",
+    "start_count": 2,
+    "stop_level": "낮음",
+    "stop_count": 2
+  }
+}

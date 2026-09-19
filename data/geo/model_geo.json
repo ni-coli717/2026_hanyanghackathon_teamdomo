@@ -1,0 +1,53 @@
+{
+  "provisional": true,
+  "note": "임시 좌표 · 구역 대표점은 data/sample/zones.csv, 후보 좌표는 data/sample/sources.csv에서 가져옴(C4는 모델 기본값). 운영자 검증 필요.",
+  "zones": {
+    "U01": {
+      "name": "한강변·라베니체 인근",
+      "app_zone_id": "Z1",
+      "lat": 37.662,
+      "lon": 126.679
+    },
+    "U02": {
+      "name": "운양역 인근",
+      "app_zone_id": "Z2",
+      "lat": 37.654,
+      "lon": 126.68
+    },
+    "U03": {
+      "name": "모담산·학교 인근",
+      "app_zone_id": "Z3",
+      "lat": 37.647,
+      "lon": 126.685
+    }
+  },
+  "candidates": {
+    "C1": {
+      "name": "고양 구산동 축산지역",
+      "type": "축산계",
+      "lat": 37.679,
+      "lon": 126.698,
+      "app_source_id": "D1"
+    },
+    "C2": {
+      "name": "김포 하성·월곶 축산지역",
+      "type": "축산계",
+      "lat": 37.72,
+      "lon": 126.63,
+      "app_source_id": "D2"
+    },
+    "C3": {
+      "name": "김포 하수처리계통(걸포동)",
+      "type": "하수계",
+      "lat": 37.633,
+      "lon": 126.7,
+      "app_source_id": "D3"
+    },
+    "C4": {
+      "name": "고양 하수처리시설 주변",
+      "type": "하수계",
+      "lat": 37.648,
+      "lon": 126.748
+    }
+  }
+}

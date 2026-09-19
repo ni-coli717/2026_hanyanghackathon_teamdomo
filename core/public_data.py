@@ -20,3 +20,13 @@ def dashboard(mode='demo'):
         weather = normalize_weather(pd.DataFrame(columns=['weather_at']))
     windows = make_windows(reports, weather, zones, sources)
     return reports, weather, zones, sources, windows, source_geometry(zones, sources)
+
+
+def window_slots(mode='demo'):
+    """Times the slider may show. Demo: the workbook's 시간창집계 list, never invented times."""
+    path = ROOT / 'data/provided/windows.csv'
+    if mode == 'demo' and path.exists():
+        slots = pd.read_csv(path)
+        slots['window_start'] = pd.to_datetime(slots.window_start)
+        return slots.sort_values('window_start').reset_index(drop=True)
+    return pd.DataFrame(columns=['window_id', 'window_start', 'valid_records', 'detected_records', 'detection_rate', 'weather_basis'])
