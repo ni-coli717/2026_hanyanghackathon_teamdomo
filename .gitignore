@@ -13,3 +13,4 @@ node_modules/
 # odor_model ships its trained artifacts
 !odor_model/artifacts/
 data/device_status.json
+ext/esp32/odor_node/config.h

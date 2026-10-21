@@ -105,16 +105,18 @@ def summarize(res: pd.DataFrame) -> str:
 
 
 # ------------------------------------------------------------------ 기상청 단기예보
-def fetch_kma_forecast(service_key: str, nx: int = 55, ny: int = 128, base: dt.datetime | None = None) -> pd.DataFrame:
-    """기상청 단기예보 조회(getVilageFcst). 김포 운양동 격자는 nx=55, ny=128 근처(운영자가 확인).
+def fetch_kma_forecast(service_key: str, nx: int = 55, ny: int = 129, base: dt.datetime | None = None) -> pd.DataFrame:
+    """기상청 단기예보 조회(getVilageFcst). 김포 운양동 격자는 nx=55, ny=129(Lambert 변환으로 확인).
     VEC 풍향(도), WSD 풍속(m/s), REH 습도(%), TMP 기온(℃), PCP 1시간 강수량(문자열)."""
     import requests
-    base = base or dt.datetime.now()
+    if base is None:
+        from zoneinfo import ZoneInfo
+        base = dt.datetime.now(ZoneInfo("Asia/Seoul")).replace(tzinfo=None)  # 발표시각 계산은 항상 KST 기준
     # 단기예보 발표 시각: 02,05,08,11,14,17,20,23시(+10분 이후 제공)
     hours = [2, 5, 8, 11, 14, 17, 20, 23]
     bt = max([h for h in hours if h <= base.hour - (1 if base.minute < 10 else 0)] or [23])
     bd = base if bt <= base.hour else base - dt.timedelta(days=1)
-    url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
+    url = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
     params = dict(serviceKey=service_key, pageNo=1, numOfRows=1000, dataType="JSON",
                   base_date=bd.strftime("%Y%m%d"), base_time=f"{bt:02d}00", nx=nx, ny=ny)
     js = requests.get(url, params=params, timeout=20).json()

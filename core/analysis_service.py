@@ -202,7 +202,7 @@ def forecast_inputs(now=None) -> tuple[pd.DataFrame, dict]:
     if key:
         try:
             from odor_model.predict import fetch_kma_forecast
-            nx, ny = int(nested_setting('kma', 'nx', '55') or 55), int(nested_setting('kma', 'ny', '128') or 128)
+            nx, ny = int(nested_setting('kma', 'nx', '55') or 55), int(nested_setting('kma', 'ny', '129') or 129)
             rows = fetch_kma_forecast(key, nx, ny, base=now.replace(tzinfo=None))
             rows = rows[rows.window_start >= pd.Timestamp(now.replace(tzinfo=None)).floor('h')]
             if not rows.empty:
