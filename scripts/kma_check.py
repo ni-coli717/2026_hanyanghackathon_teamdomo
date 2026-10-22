@@ -24,7 +24,11 @@ def load_kma():
 
 
 def call(path, key, **params):
-    r = requests.get(f"{BASE}/{path}", params=dict(serviceKey=key, pageNo=1, numOfRows=1000, dataType="JSON", **params), timeout=20)
+    try:
+        r = requests.get(f"{BASE}/{path}", params=dict(serviceKey=key, pageNo=1, numOfRows=1000, dataType="JSON", **params), timeout=20)
+    except requests.RequestException as e:
+        print(f"  !! {path}: 접속 실패 / {type(e).__name__}: {str(e).replace(key, '<KEY>')[:300]}")
+        return None, []
     body = r.text.replace(key, "<KEY>")
     try:
         js = r.json()
@@ -51,7 +55,11 @@ def main():
 
     sys.path.insert(0, str(ROOT))
     from odor_model.predict import fetch_kma_forecast
-    df = fetch_kma_forecast(key, nx, ny)
+    try:
+        df = fetch_kma_forecast(key, nx, ny)
+    except Exception as e:  # noqa: BLE001
+        print(f"  !! getVilageFcst: {type(e).__name__}: {str(e).replace(key, '<KEY>')[:300]}")
+        return
     print("단기예보", len(df), "행 /", df["source"].iloc[0] if len(df) else "-")
     print(df.head(6).to_string(index=False))
 
