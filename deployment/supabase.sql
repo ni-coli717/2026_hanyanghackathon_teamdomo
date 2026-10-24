@@ -126,3 +126,14 @@ create table if not exists public.weather_obs (
 alter table public.weather_obs enable row level security;
 revoke all on public.weather_obs from anon, authenticated;
 grant all on public.weather_obs to service_role;
+
+-- =====================================================================
+-- 주민 제보 GPS 교차검증 (2026-10-24). 기존 observations 에 위치 열 추가. SQL Editor에서 한 번 실행.
+-- lat/lon 은 앱이 소수 3자리(약 100 m)로 반올림해 보낸다. location_check='rejected' 는 분석에서 제외.
+-- =====================================================================
+alter table public.observations add column if not exists lat double precision;
+alter table public.observations add column if not exists lon double precision;
+alter table public.observations add column if not exists accuracy_m integer;
+alter table public.observations add column if not exists location_check text not null default 'unverified'
+  check (location_check in ('verified','rejected','unverified'));
+create index if not exists observations_location_check on public.observations(location_check);

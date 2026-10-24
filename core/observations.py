@@ -13,7 +13,9 @@ from .config import KST, classify_collection_mode, nested_setting, now_kst, sett
 
 FIELDS = ['observation_id','participant_id','zone_id','observed_at','received_at',
           'context','odor_detected','intensity','odor_type','collection_mode',
-          'prediction_seen','window_id','record_origin','idempotency_key']
+          'prediction_seen','window_id','record_origin','idempotency_key',
+          'lat','lon','accuracy_m','location_check']
+LOCATION_CHECKS = ('verified', 'rejected', 'unverified')   # unverified: GPS 미설정 환경(테스트·시연)에서만
 
 
 def kst(value):
@@ -21,8 +23,12 @@ def kst(value):
     return stamp.tz_localize(KST) if stamp.tzinfo is None else stamp.tz_convert(KST)
 
 
-def build_observation(participant, zone, context, odor, intensity, odor_type, key, moment=None):
+def build_observation(participant, zone, context, odor, intensity, odor_type, key, moment=None, location=None):
+    """location: core.geo_check.check_location 결과(dict) 또는 None(unverified)."""
     moment = kst(moment or now_kst())
+    loc = location or {}
+    if loc.get('status') not in (None, 'verified', 'rejected'):
+        raise ValueError('위치 검증 결과가 올바르지 않습니다.')
     if odor not in (True, False, None) or context not in ('outdoor', 'indoor'):
         raise ValueError('관측 항목을 선택하세요.')
     if odor is True and (intensity not in range(1, 6) or not odor_type):
@@ -35,7 +41,9 @@ def build_observation(participant, zone, context, odor, intensity, odor_type, ke
                 odor_type=odor_type if odor is True else ('없음' if odor is False else '판단 어려움'),
                 collection_mode=mode, prediction_seen=False,
                 window_id=observation_window(moment.to_pydatetime()).isoformat(),
-                record_origin='resident', idempotency_key=key)
+                record_origin='resident', idempotency_key=key,
+                lat=loc.get('lat'), lon=loc.get('lon'), accuracy_m=loc.get('accuracy_m'),
+                location_check=loc.get('status') or 'unverified')
 
 
 def legacy_reports(rows):
@@ -62,7 +70,8 @@ class ObservationRepository:
 
     def get_window_aggregates(self, weather, zones, sources):
         from .features import make_windows
-        return make_windows(legacy_reports(self.get_recent_observations()), weather, zones, sources)
+        rows = [r for r in self.get_recent_observations() if r.get('location_check') != 'rejected']   # GPS 교차검증 탈락 제외
+        return make_windows(legacy_reports(rows), weather, zones, sources)
 
 
 class LocalObservations(ObservationRepository):

@@ -40,10 +40,11 @@ def test_admin_authenticated_pages(monkeypatch,tmp_path):
 def start_measurement(monkeypatch,tmp_path):
     monkeypatch.setenv('APP_ENV','local')
     monkeypatch.setenv('OBSERVATION_DB_PATH',str(tmp_path/'resident.db'))
+    monkeypatch.setenv('REQUIRE_GPS','0')   # AppTest 는 브라우저 위치 컴포넌트를 돌릴 수 없다
     app=AppTest.from_file(str(ROOT/'measurement_app.py'),default_timeout=30).run()
     app.text_input[0].set_value('R07')
     app.selectbox[0].set_value('Z2')
-    click(app,'관측 시작')
+    click(app,'시작')
     assert app.radio[1].value is None
     app.radio[1].set_value('실외').run()
     click(app,'다음')

@@ -1,0 +1,30 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:15px;color:#1f2328}
+button{width:100%;padding:12px 14px;border:1px solid #c9ccd1;border-radius:8px;background:#fff;font-size:15px;cursor:pointer}
+button:hover{background:#f6f7f8}button:disabled{opacity:.5;cursor:default}
+#msg{margin-top:8px;font-size:13px;color:#57606a;min-height:18px}
+</style></head><body>
+<button id="btn" type="button">내 위치 가져오기</button>
+<div id="msg">제보할 자리에서 눌러 주세요. 위치는 구역 판정에만 쓰고 약 100 m 단위로만 저장됩니다.</div>
+<script>
+// Native Streamlit component protocol (components/odor_map/map.js 와 같은 방식). 위치는 서버(core/geo_check)가 판정한다.
+const post=(type,extra={})=>window.parent.postMessage({isStreamlitMessage:true,type,...extra},'*');
+const btn=document.getElementById('btn'),msg=document.getElementById('msg');
+const fit=()=>post('streamlit:setFrameHeight',{height:document.body.scrollHeight+4});
+btn.addEventListener('click',()=>{
+  if(!navigator.geolocation){msg.textContent='이 브라우저는 위치를 지원하지 않습니다.';fit();return;}
+  btn.disabled=true;msg.textContent='위치 확인 중…';fit();
+  navigator.geolocation.getCurrentPosition(p=>{
+    const c=p.coords;
+    post('streamlit:setComponentValue',{value:{lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,ts:p.timestamp,ok:true},dataType:'json'});
+    msg.textContent=`위치 받음 · 정확도 약 ${Math.round(c.accuracy)} m`;btn.disabled=false;btn.textContent='위치 다시 가져오기';fit();
+  },e=>{
+    const why={1:'위치 권한이 거부되었습니다. 브라우저 설정에서 허용해 주세요.',2:'위치를 확인할 수 없습니다. 실외나 창가에서 다시 시도해 주세요.',3:'시간이 초과되었습니다. 다시 눌러 주세요.'}[e.code]||'위치 확인 실패';
+    post('streamlit:setComponentValue',{value:{ok:false,error:e.code,message:why},dataType:'json'});
+    msg.textContent=why;btn.disabled=false;fit();
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+});
+window.addEventListener('message',ev=>{if(ev.source===window.parent&&ev.data?.type==='streamlit:render')fit();});
+post('streamlit:componentReady',{apiVersion:1});fit();
+</script></body></html>

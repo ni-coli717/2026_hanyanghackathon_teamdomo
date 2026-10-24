@@ -172,3 +172,14 @@ CLI: `python -m odor_model.predict forecast --csv odor_model/sample_forecast.csv
 - 운영자 ⑦ 예측 모델 → `기기` 탭: 포트, 기기 상태, 마지막 ACK, 마지막 오류, 전송 로그(조회 앱이 쓰는 `data/device_status.json`을 읽음). on_streak/off_streak는 `운영 설정` 탭.
 - **시뮬레이터(테스트 전용):** `ODOR_DEVICE_SIM=1`로 조회 앱을 실행하면 포트 목록에 `SIMULATOR`가 생깁니다. 스케치 동작(ACK, 수동 모드, 15초 무신호, LCD 문구)을 그대로 흉내 내며 화면에 "시뮬레이터 · 실제 기기 아님"으로 표시됩니다. 검증: `python -m pytest tests/test_device.py`, `python tests/browser_device_check.py`(시뮬레이터 조회 앱 8521).
 - 실제 보드·LCD·LED·팬으로는 이 PC에 보드가 연결되지 않아 검증하지 못했습니다.
+
+## 기록 앱: 로그인 · GPS 교차검증 (2026-10-24)
+
+`measurement_app.py`는 참여자 코드 + PIN으로 로그인하고, 제출 전에 휴대폰 위치(GPS)를 받아 서버(`core/geo_check.py`)가 구역을 정한다. 주민은 구역을 고르지 않는다.
+
+- 통과(`verified`): 위치 정확도 150 m 이내이고 가장 가까운 구역 대표점에서 1.5 km 이내. 그 구역으로 저장.
+- 탈락(`rejected`): 구역 밖이거나 정확도 불량. 저장은 되지만 집계(`get_window_aggregates`)에서 제외되고 화면에 "위치 미확인"으로 표시된다. 탈락 건수는 그대로 남아 보고할 수 있다.
+- 좌표는 소수 3자리(약 100 m)로 반올림해 저장한다. 정밀 위치는 남기지 않는다.
+- PIN: `python -m core.auth participant` 로 해시를 만들어 secrets `[participants]`에 넣는다. Supabase에는 `deployment/supabase.sql` 끝의 위치 열 추가 구문을 실행한다.
+- 테스트(`tests/test_app.py`)는 브라우저 위치 컴포넌트를 돌릴 수 없어 `REQUIRE_GPS=0`으로 구역 수동 선택 경로를 쓴다. 운영 배포에는 이 변수를 두지 않는다.
+- 이 기능은 앞으로 수집하는 제보에만 적용된다. 그 전에 카톡·DM으로 모은 3개월 제보는 `record_origin=resident_spontaneous_archive`로 구분하며 앱 수집 자료라고 말하지 않는다.

@@ -20,6 +20,20 @@ def verify_password(password, stored):
     except (ValueError,TypeError): return False
 
 
+def participant_pins() -> dict:
+    """secrets [participants] 표: 참여자 코드 → PIN 해시(password_hash 로 생성). 비어 있으면 로그인 미설정."""
+    try:
+        table = st.secrets.get('participants', {})
+        return {str(k).upper(): str(v) for k, v in dict(table).items()}
+    except Exception:
+        return {}
+
+
+def verify_participant(code, pin) -> bool:
+    stored = participant_pins().get(str(code).strip().upper())
+    return bool(stored) and verify_password(pin, stored)
+
+
 def require_admin():
     stored=nested_setting('admin','password_hash')
     if not stored:
@@ -38,5 +52,9 @@ def require_admin():
 
 
 if __name__ == '__main__':
-    import getpass
-    print(password_hash(getpass.getpass('관리자 비밀번호: ')))
+    import getpass, sys
+    if len(sys.argv) > 1 and sys.argv[1] == 'participant':
+        code = input('참여자 코드(예: P01): ').strip().upper()
+        print(f'{code} = "{password_hash(getpass.getpass("PIN: "))}"   # secrets.toml [participants] 에 붙이기')
+    else:
+        print(password_hash(getpass.getpass('관리자 비밀번호: ')))
