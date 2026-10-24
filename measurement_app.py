@@ -11,7 +11,7 @@ import pandas as pd
 import streamlit as st
 from core.auth import participant_pins, verify_participant
 from core.config import ZONE_PUBLIC_NAMES, classify_collection_mode, now_kst, setting
-from core.geo_check import ZONE_COLORS, ZONE_POINTS, check_location, zone_polygons
+from core.geo_check import ZONE_COLORS, ZONE_POINTS, check_location, movement_check, zone_polygons
 from core.observations import build_observation, observation_repository
 from core.ui import CSS
 
@@ -137,6 +137,15 @@ def report_sheet(repo, zone, loc, participant):
         ready = env is not None and odor is not None and (odor != '나요' or level is not None)
         st.caption(classify_collection_mode()[1] + f' · {now_kst():%m/%d %H:%M} KST 기준으로 기록')
         if st.button('기록 저장', type='primary', disabled=not ready or repo is None, use_container_width=True):
+            # 이동 가능성·연타 검증: 같은 참여자의 직전 기록과 비교(서버가 판단)
+            if loc is not None:
+                try:
+                    prev = next((r for r in repo.get_observations_by_participant(participant, limit=5) if r.get('lat') is not None), None)
+                except Exception:
+                    prev = None
+                mv = movement_check(prev, loc, now_kst())
+                if not mv['ok']:
+                    st.error(f"기록할 수 없습니다 — {mv['reason']}"); return
             key = st.session_state.setdefault('submission_key', str(uuid4()))
             odor_v = {'나요': True, '안 나요': False, '모르겠어요': None}[odor]
             draft = build_observation(participant, zone, 'outdoor' if env == '실외' else 'indoor', odor_v, level, None, key, location=loc)

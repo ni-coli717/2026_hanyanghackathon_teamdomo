@@ -477,6 +477,55 @@ def render_odor_model():
                 st.rerun()
 
 
+def render_quality():
+    """수집 품질: 앱 제보의 GPS 교차검증 통과/제외, 참여자·일자·시간대 분포. 숫자는 그대로 보고용."""
+    from core.config import ZONE_PUBLIC_NAMES
+    from core.observations import observation_repository
+    st.markdown(section("수집 품질", "앱으로 들어온 주민 제보가 위치 검증을 얼마나 통과했는지. 통계에는 '위치 확인' 건만 쓴다."), unsafe_allow_html=True)
+    try:
+        repo, notice = observation_repository()
+    except Exception as exc:  # noqa: BLE001
+        repo, notice = None, f"저장소 연결 실패 · {type(exc).__name__}"
+    st.caption(notice)
+    if repo is None:
+        st.info("공유 저장소(또는 APP_ENV=local)가 설정되면 표시됩니다."); return
+    try:
+        rows = repo.get_recent_observations()
+    except Exception:
+        st.error("서버 연결 실패 — 기록을 불러오지 못했습니다."); return
+    df = pd.DataFrame(rows)
+    if df.empty:
+        st.info("앱 제보가 아직 없습니다."); return
+    df = df[df.get("record_origin", "resident") == "resident"].copy()
+    df["check"] = df.get("location_check", pd.Series("unverified", index=df.index)).fillna("unverified")
+    df["at"] = pd.to_datetime(df["observed_at"], utc=True, errors="coerce").dt.tz_convert("Asia/Seoul")
+    label = {"verified": "위치 확인", "rejected": "위치 미확인 · 제외", "unverified": "GPS 없음"}
+    n = len(df); c = df["check"].value_counts()
+    cards = (card("앱 제보 전체", f"{n:,}건", "record_origin=resident")
+             + card("위치 확인(통계 사용)", f"{int(c.get('verified', 0)):,}건", f"{c.get('verified', 0) / n:.0%}", "risk-low")
+             + card("위치 미확인(제외)", f"{int(c.get('rejected', 0)):,}건", f"{c.get('rejected', 0) / n:.0%}", "risk-high" if c.get('rejected', 0) else "")
+             + card("GPS 없음", f"{int(c.get('unverified', 0)):,}건", "테스트·시연 모드"))
+    st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+    df["구분"] = df["check"].map(label)
+    a, b = st.columns(2)
+    with a:
+        st.markdown("#### 참여자별")
+        t = pd.crosstab(df["participant_id"], df["구분"]).reindex(columns=[label[k] for k in ("verified", "rejected", "unverified") if label[k] in df["구분"].unique()], fill_value=0)
+        st.dataframe(t, use_container_width=True)
+    with b:
+        st.markdown("#### 구역별 (위치 확인 건)")
+        v = df[df["check"] == "verified"]
+        t = v["zone_id"].map(lambda z: ZONE_PUBLIC_NAMES.get(z, z)).value_counts().rename_axis("구역").to_frame("건수")
+        st.dataframe(t, use_container_width=True)
+    st.markdown("#### 일자별")
+    daily = df.groupby([df["at"].dt.date, "구분"]).size().unstack(fill_value=0)
+    st.bar_chart(daily)
+    st.markdown("#### 시간대별 (위치 확인 건)")
+    hours = v["at"].dt.hour.value_counts().reindex(range(24), fill_value=0).rename_axis("시").to_frame("건수")
+    st.bar_chart(hours)
+    st.caption("위치 미확인 = 정확도 150 m 초과 또는 구역 대표점 1.5 km 밖 (core/geo_check). 이동 불가·연타로 막힌 제출은 저장되지 않아 여기에 없다.")
+
+
 def render_settings(repo, sample_mode):
     st.markdown(section("설정 · 데이터", "샘플과 실데이터는 SQLite 안에서도 분리 저장됩니다."), unsafe_allow_html=True)
     st.warning("공개 클라우드의 로컬 SQLite는 임시 저장소입니다. 앱 재시작·재배포 시 주민 기록이 사라질 수 있으므로, 실제 주민 수집 전에는 repo.py에 Supabase 또는 Google Sheets 구현체를 연결해야 합니다.")
@@ -529,7 +578,7 @@ hint = direction_hint(wx_row, geometry.query("zone_id == 'Z2'")) if wx_row is no
 level = risk_level(probability)
 
 render_header(sample_mode)
-pages = ["④ 분석·방향", "⑤ AI 실험", "⑥ 우리 집 대응", "⑦ 예측 모델", "⚙ 설정"]
+pages = ["④ 분석·방향", "⑤ AI 실험", "⑥ 우리 집 대응", "⑦ 예측 모델", "⑧ 수집 품질", "⚙ 설정"]
 if st.session_state.page not in pages: st.session_state.page = pages[0]
 page = st.radio("화면", pages, index=pages.index(st.session_state.page), horizontal=True, label_visibility="collapsed", key="top_navigation")
 st.session_state.page = page
@@ -541,6 +590,7 @@ elif page == "④ 분석·방향": render_analysis(reports, windows, sources)
 elif page == "⑤ AI 실험": render_ai(repo, windows, sample_mode)
 elif page == "⑥ 우리 집 대응": render_device(repo, probability, level)
 elif page == "⑦ 예측 모델": render_odor_model()
+elif page == "⑧ 수집 품질": render_quality()
 else: render_settings(repo, sample_mode)
 
 st.divider()

@@ -86,3 +86,34 @@ def zone_polygons(zones: dict | None = None, max_distance=MAX_DISTANCE_M, step_d
             ring.append((round(plon, 6), round(plat, 6)))
         out[z] = ring
     return out
+
+
+# ------------------------------------------------------------------ 이동 가능성·연타 검증
+MAX_SPEED_MS = 25.0        # 90 km/h. 운양동 안에서 이보다 빠른 이동은 위치 위조로 본다
+MIN_INTERVAL_S = 60        # 같은 사람 1분 안 재제출은 연타로 막는다
+
+
+def movement_check(prev: dict | None, loc: dict, now, max_speed=MAX_SPEED_MS, min_interval=MIN_INTERVAL_S) -> dict:
+    """prev: 같은 참여자의 직전 기록(observed_at, lat, lon, location_check) 또는 None. loc: 지금 check_location 결과.
+    반환 ok(bool), reason, speed_ms, gap_s. 직전 기록이 없거나 위치가 없으면 통과."""
+    import pandas as pd
+    out = dict(ok=True, reason='', speed_ms=None, gap_s=None)
+    if not prev or loc is None or loc.get('lat') is None or prev.get('lat') is None:
+        return out
+    try:
+        t0 = pd.Timestamp(prev['observed_at']); t1 = pd.Timestamp(now)
+        if t0.tzinfo is None: t0 = t0.tz_localize('Asia/Seoul')
+        if t1.tzinfo is None: t1 = t1.tz_localize('Asia/Seoul')
+        gap = (t1 - t0).total_seconds()
+    except (ValueError, TypeError, KeyError):
+        return out
+    out['gap_s'] = round(gap)
+    if gap < 0:
+        return out
+    if gap < min_interval:
+        out.update(ok=False, reason=f'직전 기록 {round(gap)}초 전 — {min_interval}초 뒤에 다시'); return out
+    dist = haversine_m(float(prev['lat']), float(prev['lon']), float(loc['lat']), float(loc['lon']))
+    speed = dist / max(gap, 1.0); out['speed_ms'] = round(speed, 1)
+    if speed > max_speed:
+        out.update(ok=False, reason=f'직전 기록({round(gap / 60)}분 전)에서 {round(dist / 1000, 1)} km 떨어짐 — 이동 불가')
+    return out
