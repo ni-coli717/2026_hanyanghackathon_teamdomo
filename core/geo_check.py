@@ -53,3 +53,36 @@ def check_location(lat, lon, accuracy_m=None, zones: dict | None = None,
         out['reason'] = f'가장 가까운 관측 구역에서 {round(dist / 1000, 1)} km — 구역 밖'; return out
     out.update(status='verified', zone_id=nearest, reason='')
     return out
+
+
+# ------------------------------------------------------------------ 지도용 구역 면
+ZONE_COLORS = {'Z1': (46, 134, 193), 'Z2': (39, 174, 96), 'Z3': (230, 126, 34)}   # 파랑 / 초록 / 주황
+
+
+def _offset(lat, lon, bearing_deg, dist_m):
+    r = 6371000.0
+    b = math.radians(bearing_deg); p1 = math.radians(lat); l1 = math.radians(lon); d = dist_m / r
+    p2 = math.asin(math.sin(p1) * math.cos(d) + math.cos(p1) * math.sin(d) * math.cos(b))
+    l2 = l1 + math.atan2(math.sin(b) * math.sin(d) * math.cos(p1), math.cos(d) - math.sin(p1) * math.sin(p2))
+    return math.degrees(p2), math.degrees(l2)
+
+
+def zone_polygons(zones: dict | None = None, max_distance=MAX_DISTANCE_M, step_deg=6) -> dict:
+    """check_location 과 똑같은 규칙(가장 가까운 대표점, max_distance 이내)으로 나눈 구역 면.
+    {zone_id: [(lon, lat), ...]} — 지도에 그대로 그리면 '이 면 안 = 이 구역' 이 성립한다."""
+    zones = zones or ZONE_POINTS
+    out = {}
+    for z, (zlat, zlon) in zones.items():
+        ring = []
+        for a in range(0, 360, step_deg):
+            lo, hi = 0.0, float(max_distance)
+            for _ in range(14):                       # 이 방향으로 아직 z 가 최근접인 최대 거리(이분 탐색)
+                mid = (lo + hi) / 2
+                plat, plon = _offset(zlat, zlon, a, mid)
+                nearest = min(zones, key=lambda k: haversine_m(plat, plon, *zones[k]))
+                if nearest == z: lo = mid
+                else: hi = mid
+            plat, plon = _offset(zlat, zlon, a, lo)
+            ring.append((round(plon, 6), round(plat, 6)))
+        out[z] = ring
+    return out

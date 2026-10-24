@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 from core.auth import participant_pins, verify_participant
 from core.config import ZONE_PUBLIC_NAMES, classify_collection_mode, now_kst, setting
-from core.geo_check import ZONE_POINTS, check_location
+from core.geo_check import ZONE_COLORS, ZONE_POINTS, check_location, zone_polygons
 from core.observations import build_observation, observation_repository
 from core.public_ui import header
 
@@ -51,6 +51,41 @@ def login(repo_ok: bool):
             reset(); st.rerun()
 
 
+def zone_map(loc):
+    """구역 3개를 반투명 면으로, 내 위치를 점으로. 판정된 구역은 진하게·테두리 굵게."""
+    import pydeck as pdk
+    polys = zone_polygons()
+    picked = loc.get('zone_id') if loc else None
+    rows = []
+    for z, ring in polys.items():
+        r, g, b = ZONE_COLORS[z]
+        rows.append(dict(zone=z, name=ZONE_PUBLIC_NAMES.get(z, z), polygon=[list(p) for p in ring],
+                         fill=[r, g, b, 150 if z == picked else 55], line=[r, g, b, 255 if z == picked else 140],
+                         width=5 if z == picked else 2))
+    layers = [
+        pdk.Layer('PolygonLayer', rows, get_polygon='polygon', get_fill_color='fill', get_line_color='line',
+                  get_line_width='width', line_width_units='pixels', stroked=True, filled=True, pickable=True),
+        pdk.Layer('TextLayer', [dict(name=ZONE_PUBLIC_NAMES.get(z, z).split('·')[0], lon=v[1], lat=v[0]) for z, v in ZONE_POINTS.items()],
+                  get_position='[lon, lat]', get_text='name', get_size=13, get_color=[30, 41, 59, 230],
+                  get_text_anchor='"middle"', get_alignment_baseline='"center"', font_family='sans-serif'),
+    ]
+    if loc and loc.get('lat') is not None:
+        me = [dict(lon=loc['lon'], lat=loc['lat'], name='내 위치')]
+        acc = max(40, min(float(loc.get('accuracy_m') or 40), 400))
+        layers += [
+            pdk.Layer('ScatterplotLayer', me, get_position='[lon, lat]', get_radius=acc, get_fill_color=[220, 38, 38, 45], stroked=True,
+                      get_line_color=[220, 38, 38, 160], line_width_min_pixels=1),
+            pdk.Layer('ScatterplotLayer', me, get_position='[lon, lat]', get_radius=28, radius_min_pixels=7, get_fill_color=[220, 38, 38, 255],
+                      stroked=True, get_line_color=[255, 255, 255, 255], line_width_min_pixels=2, pickable=True),
+        ]
+        view = pdk.ViewState(latitude=loc['lat'], longitude=loc['lon'], zoom=13.2)
+    else:
+        view = pdk.ViewState(latitude=37.654, longitude=126.681, zoom=12.6)
+    st.pydeck_chart(pdk.Deck(layers=layers, map_style=None, initial_view_state=view, tooltip={'text': '{name}'}), height=320)
+    chips = ' '.join(f'<span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:rgb{ZONE_COLORS[z]};margin:0 4px 0 10px"></span>{ZONE_PUBLIC_NAMES[z]}' for z in ZONE_POINTS)
+    st.markdown(f'<div style="font-size:12px;color:#57606a;margin-top:-6px">{chips} <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:rgb(220,38,38);margin:0 4px 0 10px"></span>내 위치</div>', unsafe_allow_html=True)
+
+
 def location_panel():
     """GPS 받기 → 서버 판정 → 지도. 반환: check 결과 dict 또는 None."""
     from core.geo_component import geo_locate
@@ -61,28 +96,23 @@ def location_panel():
     elif raw and raw.get('message'):
         st.warning(raw['message'])
     loc = st.session_state.get('location')
-    if loc is None:
-        st.info('위치를 가져오면 어느 구역에서 제보하는지 자동으로 정해집니다. 그 자리에 있지 않으면 제보는 분석에서 제외됩니다.')
-        return None
-    pts = pd.DataFrame([dict(lat=v[0], lon=v[1], name=ZONE_PUBLIC_NAMES.get(k, k), kind='zone') for k, v in ZONE_POINTS.items()])
-    me = pd.DataFrame([dict(lat=loc['lat'], lon=loc['lon'], name='내 위치', kind='me')])
     try:
-        import pydeck as pdk
-        layers = [
-            pdk.Layer('ScatterplotLayer', pts, get_position='[lon, lat]', get_radius=400, get_fill_color=[70, 110, 200, 60], pickable=True),
-            pdk.Layer('ScatterplotLayer', pts, get_position='[lon, lat]', get_radius=40, get_fill_color=[70, 110, 200, 220]),
-            pdk.Layer('ScatterplotLayer', me, get_position='[lon, lat]', get_radius=max(30, min(loc['accuracy_m'] or 30, 300)), get_fill_color=[220, 80, 60, 90]),
-            pdk.Layer('ScatterplotLayer', me, get_position='[lon, lat]', get_radius=25, get_fill_color=[220, 80, 60, 255]),
-        ]
-        st.pydeck_chart(pdk.Deck(layers=layers, map_style=None, tooltip={'text': '{name}'},
-                                 initial_view_state=pdk.ViewState(latitude=loc['lat'], longitude=loc['lon'], zoom=13.5)), height=280)
+        zone_map(loc)
     except Exception:
-        st.map(pd.concat([pts, me]), latitude='lat', longitude='lon', size=60, zoom=13)
+        st.caption('지도를 그릴 수 없어 판정 결과만 표시합니다.')
+    if loc is None:
+        st.info('위치를 가져오면 어느 구역에 있는지 지도에 표시되고, 그 구역으로 제보가 기록됩니다. 세 구역 밖이면 분석에서 제외됩니다.')
+        return None
     if loc['status'] == 'verified':
-        st.success(f"{ZONE_PUBLIC_NAMES[loc['zone_id']]} 구역 · 대표점에서 {loc['distance_m']} m · 위치 정확도 약 {loc['accuracy_m']} m")
+        r, g, b = ZONE_COLORS[loc['zone_id']]
+        st.markdown(f'<div style="padding:14px 16px;border-radius:10px;background:rgba({r},{g},{b},0.14);border-left:6px solid rgb({r},{g},{b})">'
+                    f'<div style="font-size:12px;color:#57606a">지금 있는 구역</div>'
+                    f'<div style="font-size:22px;font-weight:700;line-height:1.3">{ZONE_PUBLIC_NAMES[loc["zone_id"]]}</div>'
+                    f'<div style="font-size:13px;color:#57606a;margin-top:2px">구역 대표점에서 {loc["distance_m"]} m · 위치 정확도 약 {loc["accuracy_m"]} m · 이 구역으로 기록됩니다</div></div>',
+                    unsafe_allow_html=True)
     else:
-        st.error(f"이 자리의 제보는 분석에서 제외됩니다 — {loc['reason']}")
-        st.caption('제보는 저장되지만 "위치 미확인"으로 표시되어 통계에 들어가지 않습니다. 관측 구역 안으로 이동해 다시 위치를 가져오세요.')
+        st.error(f"세 구역 밖이거나 위치가 부정확합니다 — {loc['reason']}")
+        st.caption('제보는 저장되지만 "위치 미확인"으로 표시되어 통계에 들어가지 않습니다. 색칠된 구역 안으로 이동해 다시 위치를 가져오세요.')
     return loc
 
 
