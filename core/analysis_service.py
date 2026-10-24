@@ -27,7 +27,7 @@ MODEL_STATUS = '예비 실험·미보정'
 
 DEFAULT_SETTINGS = {
     'active_model': 'bundled',   # 'bundled' 또는 data/models/odor/<run> 이름. 운영자가 명시적으로 선택할 때만 바뀐다.
-    'thr_mid': 0.5,              # 보통 이상
+    'thr_mid': None,             # 보통 이상. None이면 활성 모델의 경계(번들 thr_fixed)
     'thr_high': None,            # 높음 이상. None이면 활성 모델의 검증 임계값(번들 0.75)
     'calm_ms': 0.5,              # 이 풍속 미만은 방향 보류
     'align_min': 0.5,            # 정렬 후보 최소 정렬도
@@ -124,8 +124,8 @@ def load_model(name: str | None = None) -> tuple[dict | None, dict]:
         model = _load(str(path), path.stat().st_mtime, json.dumps(load_geo(), ensure_ascii=False, sort_keys=True))
     except Exception as exc:  # noqa: BLE001 - any unpickling/version error means '추정 보류'
         return None, {**info, 'ok': False, 'reason': f'모델 로딩 실패 · {type(exc).__name__}'}
-    return model, {**info, 'ok': True, 'reason': '', 'trained_on': model.get('trained_on', ''),
-                   'thr_valid': float(model.get('thr_valid', 0.75))}
+    return model, {**info, 'ok': True, 'reason': '', 'trained_on': model.get('trained_on', ''), 'status': model.get('status', MODEL_STATUS),
+                   'thr_valid': float(model.get('thr_valid', 0.75)), 'thr_fixed': float(model.get('thr_fixed', 0.5))}
 
 
 # ------------------------------------------------------------------ inputs
@@ -180,11 +180,12 @@ def predict_windows(weather_df: pd.DataFrame, model_name: str | None = None) -> 
     else:
         try:
             res = predict_rows(weather_df, model, {k: v for k, v in settings.items() if v is not None})
+            res['model_status'] = model.get('status', MODEL_STATUS)
         except Exception as exc:  # noqa: BLE001
             res = _held(weather_df, f'모델 오류 · {type(exc).__name__}')
     ids = app_zone_ids()
     res['app_zone_id'] = res.zone_id.map(ids)
-    res['model_status'] = MODEL_STATUS
+    if 'model_status' not in res: res['model_status'] = MODEL_STATUS
     res['basis_label'] = res.basis.map(BASIS_LABELS).fillna('미확인')
     res['type_key'] = res.get('type_top', pd.Series(index=res.index, dtype=object)).map(TYPE_KEYS).fillna('unknown')
     res['candidates'] = res.get('aligned_candidates', pd.Series('', index=res.index)).map(_candidates)

@@ -372,7 +372,7 @@ def render_odor_model():
     active = settings["active_model"]
     state_note = "정상" if info["ok"] else f"추정 보류 · {info['reason']}"
     high = f"{settings.get('thr_high') or info.get('thr_valid', 0.75):.2f}"
-    cards = (card("주민 화면 모델", "번들" if active == "bundled" else active, "예비 실험·미보정")
+    cards = (card("주민 화면 모델", "번들" if active == "bundled" else active, info.get("status", "예비 실험·미보정") if isinstance(info, dict) else "예비 실험·미보정")
              + card("로딩 상태", state_note, info["path"], "risk-low" if info["ok"] else "risk-hold")
              + card("높음 임계값", high, "운영 설정 · 공인 기준 아님"))
     st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
@@ -419,7 +419,7 @@ def render_odor_model():
     with config:
         st.markdown(badge("운영 설정 · 공인 기준 아님", "#9A6B1F"), unsafe_allow_html=True)
         a, b = st.columns(2)
-        thr_mid = a.number_input("보통 임계값", 0.05, 0.95, float(settings["thr_mid"]), 0.05)
+        thr_mid = a.number_input("보통 임계값", 0.05, 0.95, float(settings.get("thr_mid") or info.get("thr_fixed", 0.5)), 0.05)
         thr_high = b.number_input("높음 임계값", 0.05, 0.99, float(settings.get("thr_high") or info.get("thr_valid", 0.75)), 0.05)
         calm = a.number_input("약풍 기준 (m/s)", 0.0, 3.0, float(settings["calm_ms"]), 0.1)
         align = b.number_input("정렬도 최소", 0.0, 1.0, float(settings["align_min"]), 0.05)

@@ -193,13 +193,13 @@ def prepare_payload(reports, weather, zones, windows, demo, slots=None, predicti
             'zones': [{'id': z.zone_id, 'name': ZONE_PUBLIC_NAMES.get(z.zone_id, z['name']),
                        'lat': float(z.rep_lat), 'lon': float(z.rep_lon)} for _, z in zones.iterrows()],
             'boundary': boundary(), 'types': TYPES, 'forecast': meta, 'calm_ms': float(settings['calm_ms']),
-            'model': {'ok': bool(model_info.get('ok')), 'reason': model_info.get('reason', ''), 'status': '예비 실험·미보정'},
+            'model': {'ok': bool(model_info.get('ok')), 'reason': model_info.get('reason', ''), 'status': model_info.get('status', '예비 실험·미보정')},
             'outlook': outlook(frames, list(zones.zone_id), now_kst()),
             'info': {'자료 유형': '시연' if demo else '주민 관측', '기간': period, '기록 수': f'{len(reports):,}건',
                      '주민 기록': '가상 생성 · simulated' if demo else '직접 제출',
                      '기상 자료': weather_info, '기상 관측소': '427 양촌' if demo else '미연결',
                      '예보': forecast_info,
-                     '추정 모델': '예비 실험·미보정' if model_info.get('ok') else f"추정 보류 · {model_info.get('reason', '')}",
+                     '추정 모델': model_info.get('status', '예비 실험·미보정') if model_info.get('ok') else f"추정 보류 · {model_info.get('reason', '')}",
                      '행정경계': 'KOSTAT 공개자료 · 2018', '관측 위치': '구역 대표점 · 임시'}}
 
 

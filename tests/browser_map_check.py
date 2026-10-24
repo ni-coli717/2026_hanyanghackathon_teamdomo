@@ -40,7 +40,7 @@ def check():
                 assert 0 <= box['y'] and box['y']+box['height'] <= height+2, (width, name, box)
             assert actual.evaluate('odorMap.data.frames.filter(f=>f.kind==="observed").length') == 364
             expect(frame.locator('#time-mode')).to_have_text('업데이트 지연')
-            expect(frame.locator('#model-badge')).to_have_text('예비 실험·미보정')
+            expect(frame.locator('#model-badge')).to_have_text('실제 제보 학습 · 센서 보정 전')
             page.screenshot(path=f'artifacts/map-{width}.png', full_page=True)
 
             # 09-11 22:00: group detection, calm -> arrows hidden, needle off, zone badge.
@@ -65,7 +65,7 @@ def check():
             page.screenshot(path=f'artifacts/model-ene-{width}.png', full_page=True)
             frame.locator('.leaflet-marker-icon.flow-head').first.click(force=True)
             expect(frame.locator('#panel-content')).to_contain_text('정렬 후보')
-            expect(frame.locator('#panel-content')).to_contain_text('예비 실험·미보정')
+            expect(frame.locator('#panel-content')).to_contain_text('실제 제보 학습 · 센서 보정 전')
             assert '%' not in frame.locator('#panel-content').inner_text()
             page.screenshot(path=f'artifacts/model-detail-{width}.png', full_page=True)
             frame.locator('#close-panel').click()

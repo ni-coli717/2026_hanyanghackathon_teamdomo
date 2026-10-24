@@ -39,7 +39,7 @@ def predict_rows(rows: pd.DataFrame, m: dict, settings: dict | None = None) -> p
     """rows: window_start, wind_from_deg, wind_speed, humidity_pct, temperature_c, rain_1h_mm (+ optional source, basis).
     각 행을 3개 구역으로 확장해 예측. settings: 운영 설정(thr_mid, thr_high, calm_ms, align_min, align_tie) — 공인 기준 아님."""
     s = settings or {}
-    thr_mid = float(s.get("thr_mid", 0.5)); thr_high = float(s.get("thr_high", m["thr_valid"]))
+    thr_mid = float(s.get("thr_mid") or m.get("thr_fixed", 0.5)); thr_high = float(s.get("thr_high") or m["thr_valid"])
     calm_ms = float(s.get("calm_ms", CALM_MS)); align_min = float(s.get("align_min", ALIGN_MIN))
     align_tie = float(s.get("align_tie", ALIGN_TIE))
     geo = m["geo"]; ct = candidate_table(geo)

@@ -118,7 +118,7 @@ function render(){
  $('direction').textContent=kind==='odor'?`${pred.from_sector}쪽에서 유입 추정`:kind==='wind'?`${direction(w.from)}쪽 바람`:kind==='calm'?'방향 보류':'방향 미확인';
  $('multi').hidden=!(kind==='odor'&&pred?.direction==='여러 방향 가능');
  $('type-label').textContent=kind==='odor'?`${data.types[pred.type][0]} · 추정`:kind==='wind'?'바람':kind==='calm'?'약풍':f?'자료 부족':'자료 없음';
- $('model-badge').textContent=data.model?.ok?'예비 실험·미보정':'추정 보류';
+ $('model-badge').textContent=data.model?.ok?(data.model.status||'예비 실험·미보정'):'추정 보류';
  $('compass-at').textContent=basisTime(f?.at);
  $('timing-label').textContent=forecast?'예보 기준':'선택 시각 기준';
  $('layer-label').textContent=hiddenByFilter(kind,pred)?'선택 유형 없음':(kind==='odor'?`${data.types[pred.type][0]} · 이동 방향`:kind==='wind'?'바람 이동':kind==='calm'?'방향 보류':'방향 미확인')+(forecast?' · 점선 예보':'');
@@ -148,7 +148,7 @@ function renderPanel(){
  const panel=state.panel,z=nearby(),s=stat(),f=frame(),w=f?.wind,kind=spotKind(),pred=s.pred,forecast=isForecast(f);
  $('panel').hidden=!panel;if(!panel)return;
  let title='',content='';
- const model='<span class="badge model">예비 실험·미보정</span>';
+ const model='<span class="badge model">'+(data.model?.status||'예비 실험·미보정')+'</span>';
  if(panel==='air'){
   const d=window.appArgs.device||{},enabled=state.auto_enabled!==false;
   const devState=d.connected?`연결됨 · ${d.device_fan===true?'가동 중':d.device_fan===false?'대기 중':'응답 대기'}${d.simulator?' · 시뮬레이터':''}`:(d.status||'연결된 기기 없음');

@@ -60,8 +60,10 @@ def test_ene_wind_draws_wsw_livestock_arrow(demo):
     f = frame(demo['payload'], '2026-09-15T22:00')
     assert f['wind']['from'] == 67.5 and f['wind']['to'] == 247.5
     z2 = f['zones']['Z2']
-    assert z2['arrow'] == 'odor' and z2['pred']['type'] == 'livestock' and z2['pred']['from_sector'] == '동북동'
+    # 2026-10-24: 냄새 종류 추정은 내렸다(실제 제보에 종류 기록 없음). 방향·후보만 남는다.
+    assert z2['arrow'] == 'odor' and z2['pred']['type'] == 'unknown' and z2['pred']['from_sector'] == '동북동'
     assert service.load_geo()['candidates']['C1']['name'] in json.dumps(z2['pred'], ensure_ascii=False)
+    assert demo['payload']['model']['status'] == '실제 제보 학습 · 센서 보정 전'
 
 
 def test_low_estimate_without_detection_is_wind_only(demo):

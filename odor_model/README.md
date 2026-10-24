@@ -1,3 +1,13 @@
+# odor_model — 2026-10-24 갱신
+
+**번들 모델(`artifacts/odor_model.joblib`)은 실제 주민 제보 148사건(2026-06-20~09-30)으로 학습한 case-crossover 조건부 로지스틱이다**
+(`case_crossover.py`, AWS 김포 441). 이전 시나리오 자료 모델은 `artifacts/scenario_odor_model.joblib` 로 남겨 두었고 화면에는 쓰지 않는다.
+평가: `artifacts/evaluation_cc_441.md` (교차검증 set AUC 0.64), 비교 `evaluation_cc_427.md`(0.60), 엄격 집합 `*_strict.md`(0.61/0.63).
+상태 배지: "실제 제보 학습 · 센서 보정 전". 냄새 종류(type) 추정은 내렸다(`UniformType`, '미구분').
+재학습: `python -m odor_model.case_crossover --station 441` → `data/models/odor/cc_441/` (자료는 `data/private/` 필요).
+
+---
+
 # 운양동 악취 예측 모델 (odor_model)
 
 주민 관측 3개월(6/18~9/16) 자료로 학습한 **구역별 집단 감지 예측기**와 **유입 방향·유형 추정기**. 상태: 예비 실험·미보정.
