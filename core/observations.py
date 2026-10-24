@@ -31,8 +31,9 @@ def build_observation(participant, zone, context, odor, intensity, odor_type, ke
         raise ValueError('위치 검증 결과가 올바르지 않습니다.')
     if odor not in (True, False, None) or context not in ('outdoor', 'indoor'):
         raise ValueError('관측 항목을 선택하세요.')
-    if odor is True and (intensity not in range(1, 6) or not odor_type):
-        raise ValueError('강도와 냄새 느낌을 선택하세요.')
+    if odor is True and intensity not in range(1, 4):
+        raise ValueError('강도(1·2·3)를 선택하세요.')
+    odor_type = odor_type or '미구분'   # 2026-10-24: 냄새 종류는 묻지 않는다(주민이 구분하기 어려움)
     mode, _ = classify_collection_mode(moment.to_pydatetime())
     return dict(observation_id=key, participant_id=participant, zone_id=zone,
                 observed_at=moment.isoformat(), received_at=now_kst().isoformat(),

@@ -45,49 +45,54 @@ def start_measurement(monkeypatch,tmp_path):
     app.text_input[0].set_value('R07')
     app.selectbox[0].set_value('Z2')
     click(app,'시작')
-    assert app.radio[1].value is None
-    app.radio[1].set_value('실외').run()
-    click(app,'다음')
-    assert app.radio[1].value is None
+    click(app,'제보하기')                    # 아래에서 올라오는 제보 창
+    assert app.radio[0].value is None and app.radio[1].value is None
     return app
+
+
+def radio(app,label):
+    return next(r for r in app.radio if r.label==label)
 
 
 def test_no_odor_fast_path_and_reset(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
-    app.radio[1].set_value('느껴지지 않음').run()
-    click(app,'다음'); click(app,'기록 저장')
+    assert next(b for b in app.button if b.label=='기록 저장').disabled
+    radio(app,'어디에서 확인했나요?').set_value('실외').run()
+    radio(app,'지금 냄새가 나나요?').set_value('안 나요').run()
+    click(app,'기록 저장')
     assert app.success
     rows=LocalObservations(tmp_path/'resident.db').get_recent_observations()
     assert len(rows)==1 and rows[0]['odor_detected'] is False
-    assert rows[0]['intensity']==0 and rows[0]['odor_type']=='없음'
-    click(app,'새 관측 시작')
-    assert app.radio[1].value is None
+    assert rows[0]['intensity']==0 and rows[0]['odor_type']=='없음' and rows[0]['location_check']=='unverified'
+    click(app,'닫기'); click(app,'제보하기')
+    assert radio(app,'지금 냄새가 나나요?').value is None
 
 
 def test_unknown_and_indoor(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
-    click(app,'이전 단계')
-    app.radio[1].set_value('실내').run(); click(app,'다음')
-    app.radio[1].set_value('판단하기 어려움').run()
-    click(app,'다음'); click(app,'기록 저장')
+    radio(app,'어디에서 확인했나요?').set_value('실내').run()
+    radio(app,'지금 냄새가 나나요?').set_value('모르겠어요').run()
+    click(app,'기록 저장')
     row=LocalObservations(tmp_path/'resident.db').get_recent_observations()[0]
     assert row['odor_detected'] is None and row['context']=='indoor'
 
 
-def test_yes_requires_explicit_details(monkeypatch,tmp_path):
+def test_yes_requires_intensity_1_to_3_and_no_type(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
-    app.radio[1].set_value('느껴짐').run(); click(app,'다음')
-    assert app.radio[1].value is None and app.radio[2].value is None
-    assert next(b for b in app.button if b.label=='내용 확인').disabled
-    app.radio[1].set_value(4).run(); app.radio[2].set_value('탄내').run()
-    click(app,'내용 확인'); click(app,'기록 저장')
+    radio(app,'어디에서 확인했나요?').set_value('실외').run()
+    radio(app,'지금 냄새가 나나요?').set_value('나요').run()
+    assert next(b for b in app.button if b.label=='기록 저장').disabled
+    assert radio(app,'얼마나 심한가요?').options==['1','2','3']
+    radio(app,'얼마나 심한가요?').set_value(3).run()
+    click(app,'기록 저장')
     row=LocalObservations(tmp_path/'resident.db').get_recent_observations()[0]
-    assert row['odor_detected'] is True and row['intensity']==4
+    assert row['odor_detected'] is True and row['intensity']==3 and row['odor_type']=='미구분'
 
 
-def test_save_failure_keeps_draft(monkeypatch,tmp_path):
+def test_save_failure_keeps_form(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
-    app.radio[1].set_value('느껴지지 않음').run(); click(app,'다음')
+    radio(app,'어디에서 확인했나요?').set_value('실외').run()
+    radio(app,'지금 냄새가 나나요?').set_value('안 나요').run()
     def fail(*args): raise RuntimeError('offline')
     with monkeypatch.context() as m:
         m.setattr(LocalObservations,'save_observation',fail)
