@@ -189,9 +189,15 @@ def prepare_payload(reports, weather, zones, windows, demo, slots=None, predicti
     model_info = model_info or {'ok': False, 'reason': '모델 없음'}
     forecast_info = {'kma': f"기상청 단기예보 · {meta.get('issued', '')}", 'csv': '시연 예보 · 예시 파일',
                      'none': '없음'}[meta['source']] + (f" · {meta['error']}" if meta.get('error') else '')
+    from .config import ZONE_SUBTITLES
+    from .geo_check import zone_polygons
+    points = {z.zone_id: (float(z.rep_lat), float(z.rep_lon)) for _, z in zones.iterrows()}
+    rings = zone_polygons(points)            # 측정 앱과 같은 규칙(가장 가까운 대표점·1.5 km)으로 나눈 면
     return {'frames': frames, 'latest_index': latest_index, 'demo': demo, 'now': now_kst().isoformat(),
             'zones': [{'id': z.zone_id, 'name': ZONE_PUBLIC_NAMES.get(z.zone_id, z['name']),
-                       'lat': float(z.rep_lat), 'lon': float(z.rep_lon)} for _, z in zones.iterrows()],
+                       'subtitle': ZONE_SUBTITLES.get(z.zone_id, ''),
+                       'lat': float(z.rep_lat), 'lon': float(z.rep_lon),
+                       'ring': [[lat, lon] for lon, lat in rings[z.zone_id]]} for _, z in zones.iterrows()],
             'boundary': boundary(), 'types': TYPES, 'forecast': meta, 'calm_ms': float(settings['calm_ms']),
             'model': {'ok': bool(model_info.get('ok')), 'reason': model_info.get('reason', ''), 'status': model_info.get('status', '예비 실험·미보정')},
             'outlook': outlook(frames, list(zones.zone_id), now_kst()),

@@ -10,11 +10,13 @@ import streamlit as st
 KST = ZoneInfo("Asia/Seoul")
 SCHEDULED_TIMES = ["07:30", "12:30", "18:30", "22:00"]
 SCHEDULE_TOLERANCE_MINUTES = 15
+# 주민에게 보이는 구역 이름. Z1/Z2/Z3 는 자료·DB 안에서만 쓴다.
 ZONE_PUBLIC_NAMES = {
-    "Z1": "한강변·라베니체 인근",
-    "Z2": "운양역 인근",
-    "Z3": "모담산·학교 인근",
+    "Z1": "한강변",
+    "Z2": "운양역",
+    "Z3": "모담산",
 }
+ZONE_SUBTITLES = {"Z1": "북쪽 · 라베니체 일대", "Z2": "가운데 · 운양역 일대", "Z3": "남쪽 · 모담산·학교 일대"}
 
 
 def now_kst() -> datetime:
