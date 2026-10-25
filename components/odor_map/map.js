@@ -8,6 +8,7 @@ const LEVELS=['낮음','보통','높음'];
 const LEVEL_CLASS={'낮음':'low','보통':'mid','높음':'high'};
 const COLORS={low:'#2E8B57',mid:'#E0A100',high:'#D64533',hold:'#9AA5AE'};
 const TABS={now:'지금',forecast:'예보',record:'기록',help:'안내'};
+const desktop=()=>window.matchMedia('(min-width:900px)').matches;   // 데스크톱: 왼쪽 패널, 시트 접힘 없음
 const post=(type,extra={})=>window.parent.postMessage({isStreamlitMessage:true,type,...extra},'*');
 function send(){
  if(!map||!state)return;
@@ -114,11 +115,17 @@ function render(){
  $('foot').textContent=`냄새 나침반 v1 · ${latest?shortTime(latest.at):'—'} 갱신`;
  // 탭·시트
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
- $('sheet').classList.toggle('collapsed',!!state.collapsed&&state.tab==='now'&&!state.panel);
+ $('sheet').classList.toggle('collapsed',!desktop()&&!!state.collapsed&&state.tab==='now'&&!state.panel);
+ $('now-zone-list').innerHTML=zoneButtons(f,z);
+ bindZoneButtons($('now-zone-list'));
  $('view-now').hidden=state.tab!=='now'||!!state.panel;$('view-tab').hidden=!$('view-now').hidden;
  drawZones();renderPanel();
  requestAnimationFrame(()=>document.documentElement.style.setProperty('--sheet-h',`${$('sheet').offsetHeight}px`));
 }
+function zoneButtons(f,z){
+ return data.zones.map(zz=>{const l=state.tab==='forecast'?levelOf(f,zz.id):todayLevel(zz.id),c=LEVEL_CLASS[l]||'hold';return `<button data-zone="${zz.id}" class="${z?.id===zz.id?'on':''}"><span class="sw ${c}"></span><b>${esc(zz.name)}</b><span class="s">${esc(zz.subtitle)}</span><span class="lv-${c}">${esc(l||'보류')}</span></button>`;}).join('');
+}
+function bindZoneButtons(root){root.querySelectorAll('[data-zone]').forEach(b=>b.onclick=()=>{const zz=data.zones.find(x=>x.id===b.dataset.zone);if(zz){choose([zz.lat,zz.lon]);map.panTo([zz.lat,zz.lon]);}});}
 function rows(values){return '<dl>'+Object.entries(values).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')+'</dl>';}
 function openPanel(panel){state.panel=panel||'';if(panel)state.collapsed=false;render();send();}
 function setTab(tab){stop();state.tab=tab;state.panel='';if(tab!=='now')state.collapsed=false;render();send();}
@@ -163,7 +170,7 @@ function renderPanel(){
   const li=latestIndex(),index=frameIndex(),ahead=data.frames.length-1-li;
   const stale=f&&index===li&&(Date.now()-Date.parse(f.at)>3600000);
   const mode=!f?'자료 없음':forecast?data.forecast?.label||'예보':index===li?(stale?'갱신 지연':'최신'):'지난 기록';
-  const zones=data.zones.map(zz=>{const l=levelOf(f,zz.id),c=LEVEL_CLASS[l]||'hold';return `<button data-zone="${zz.id}" class="${z?.id===zz.id?'on':''}"><span class="sw ${c}"></span><b>${esc(zz.name)}</b><span class="s">${esc(zz.subtitle)}</span><span class="lv-${c}">${esc(l||'보류')}</span></button>`;}).join('');
+  const zones=zoneButtons(f,z);
   content=`<div class="timeline"><div class="row"><strong id="time-label">${esc(fmt(f?.at))}</strong><span class="mode ${forecast?'forecast':stale?'stale':''}" id="time-mode">${esc(mode)}</span></div>
    <div class="tl-controls"><button id="previous" aria-label="이전 시각" ${index<=0?'disabled':''}>‹</button><input id="time-slider" type="range" min="0" max="${Math.max(0,data.frames.length-1)}" value="${Math.max(0,index)}" step="1" aria-label="시각" aria-valuetext="${esc(fmt(f?.at))} ${esc(mode)}" ${f?'':'disabled'}><button id="next" aria-label="다음 시각" ${index<0||index>=data.frames.length-1?'disabled':''}>›</button></div>
    <div class="row"><span class="muted">${ahead>0?`예보 ~${esc(fmt(data.frames.at(-1).at))}`:'미래 자료 없음'}${w?` · ${esc(windText(w))}`:''}</span><button id="latest" class="chipbtn" ${index===li?'disabled':''}>최신</button></div></div>
@@ -177,7 +184,7 @@ function renderPanel(){
  }
  $('panel-title').textContent=title;$('panel-content').innerHTML=content;
  $('panel-content').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openPanel(b.dataset.open));
- $('panel-content').querySelectorAll('[data-zone]').forEach(b=>b.onclick=()=>{const zz=data.zones.find(x=>x.id===b.dataset.zone);if(zz){choose([zz.lat,zz.lon]);map.panTo([zz.lat,zz.lon]);}});
+ bindZoneButtons($('panel-content'));
  const slider=$('time-slider');if(slider)slider.oninput=e=>{stop();setTime(Number(e.target.value));};
  if($('previous'))$('previous').onclick=()=>{stop();setTime(frameIndex()-1);};
  if($('next'))$('next').onclick=()=>{stop();setTime(frameIndex()+1);};
@@ -208,7 +215,7 @@ function initialize(args){
  state={position:selection.position,position_kind:'selected',at:selection.at,mode:'latest',tab:'now',panel:'',collapsed:true,auto_enabled:true,sequence:0,...args.initial_state};
  const bounds=L.geoJSON(data.boundary).getBounds();
  map=L.map('map',{zoomControl:false,attributionControl:true,maxBounds:bounds.pad(.10),maxBoundsViscosity:1,minZoom:10,maxZoom:17,zoomSnap:.5});
- if(state.center)map.setView(state.center,state.zoom||14);else map.fitBounds(L.latLngBounds(data.zones.flatMap(z=>z.ring)),{paddingTopLeft:[10,70],paddingBottomRight:[10,170],animate:false});   // 처음엔 세 구역이 시트 위로 다 보이게
+ if(state.center)map.setView(state.center,state.zoom||14);else map.fitBounds(L.latLngBounds(data.zones.flatMap(z=>z.ring)),{paddingTopLeft:[10,desktop()?20:70],paddingBottomRight:[10,desktop()?20:170],animate:false});   // 처음엔 세 구역이 다 보이게
  // 네이버 지도 키가 오기 전까지는 OSM 타일을 CSS 로 흐리게(채도·대비 낮춤) 써서 구역 색만 보이게 한다. (Carto 는 키 필요)
  tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
  tiles.on('tileerror',()=>{tileFailures++;if(tileFailures>=2)$('tile-error').hidden=false;});
@@ -225,6 +232,7 @@ function initialize(args){
   navigator.geolocation.getCurrentPosition(p=>{if(request!==locationRequest)return;const pos=[p.coords.latitude,p.coords.longitude];state.accuracy=p.coords.accuracy;if(choose(pos,'gps'))map.setView(pos,15);},()=>{if(request===locationRequest)message('위치 권한 또는 연결 확인 · 지도에서 선택');},{timeout:10000,maximumAge:60000,enableHighAccuracy:false});
  };
  $('wind-btn').onclick=()=>openPanel('flow');
+ $('zoom-in').onclick=()=>map.zoomIn();$('zoom-out').onclick=()=>map.zoomOut();
  $('retry').onclick=()=>{tileFailures=0;$('tile-error').hidden=true;tiles.redraw();};
  $('head').onclick=()=>expand(!!state.collapsed);
  sheetDrag($('grip'));sheetDrag($('head'));
@@ -232,6 +240,7 @@ function initialize(args){
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){stop();picking=false;$('pick').classList.remove('active');hideMessage();if(state.panel)openPanel('');else expand(false);}});
  window.addEventListener('resize',()=>{map.invalidateSize();post('streamlit:setFrameHeight',{height:window.innerHeight});});
+ window.matchMedia('(min-width:900px)').addEventListener('change',()=>{map.invalidateSize();render();});
  rendered=true;render();
 }
 window.addEventListener('message',event=>{

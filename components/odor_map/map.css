@@ -77,5 +77,27 @@ input[type=range]{flex:1;accent-color:var(--ink);height:28px}
 .manual-note{background:#FFF7E0;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}.manual-note button{color:var(--blue);margin-left:6px}
 .sim{border:1px dashed var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}.sim>div{display:flex;gap:6px;margin:6px 0}.sim button{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}.lcd{font-family:monospace;background:#222;color:#9FE870;padding:6px 8px;border-radius:6px;font-size:12px;margin:6px 0}
 
-@media (min-width:900px){#sheet{left:16px;right:auto;width:var(--sheet-w);border-radius:16px 16px 0 0}#header{margin:0}}
+#now-zones{display:none;margin-top:18px}#now-zones .row strong{font-size:15px}
+.fab.zoom{display:none;font-size:22px;font-weight:500;color:var(--ink)}
+/* ---------- 데스크톱: 왼쪽 패널 + 오른쪽 지도 (네이버 지도 웹 구성) ---------- */
+@media (min-width:900px){
+ :root{--panel-w:420px}
+ #map{left:var(--panel-w)}
+ #header{left:0;right:auto;top:0;width:var(--panel-w);max-width:none;height:60px;margin:0;border-radius:0;box-shadow:none;border-bottom:1px solid var(--line);padding:0 24px;z-index:720}
+ #header strong{font-size:18px}
+ #sheet{left:0;right:auto;top:60px;bottom:0;width:var(--panel-w);max-width:none;max-height:none;border-radius:0;box-shadow:2px 0 12px rgba(0,0,0,.08);touch-action:auto}
+ #grip,#chev{display:none}
+ #sheet-body{padding:0 24px 24px;flex:1}
+ #sheet.collapsed #now-more{display:block}#sheet.collapsed #sheet-body{overflow:auto}
+ #tabs{order:-1;padding:12px 24px 4px;border-top:0;gap:6px}
+ #tabs button{flex:0 0 auto;flex-direction:row;padding:6px 14px;border-radius:16px;font-size:13px;color:var(--ink2);background:#F0F0EE}
+ #tabs button i{display:none}#tabs button.active{background:var(--ink);color:#fff}
+ #head{cursor:default;padding:14px 0 12px}#level-word,#sheet:not(.collapsed) #level-word{font-size:56px;line-height:60px}
+ #head-sub,#sheet:not(.collapsed) #head-sub{white-space:normal}
+ #now-zones{display:block}
+ #fabs{right:16px;top:16px}
+ .fab.zoom{display:grid}
+ .leaflet-bottom.leaflet-right{bottom:4px!important}
+ #notice,#tile-error{left:calc(var(--panel-w) + 16px);top:16px;right:72px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

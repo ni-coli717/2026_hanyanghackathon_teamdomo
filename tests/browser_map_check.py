@@ -41,12 +41,18 @@ def check():
             page, frame, actual, errors = open_map(browser, width, height)
             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
             assert not actual.evaluate('document.documentElement.scrollWidth>innerWidth')
-            # First screen: map + collapsed sheet only; header, fabs and sheet inside the viewport.
+            # First screen. Phone: map + collapsed sheet only. Desktop: left panel (always open) + map.
+            desktop = width >= 900
             assert actual.evaluate('odorMap.state.collapsed') is True
             for name in ['#header', '#wind-btn', '#locate', '#sheet', '#tabs']:
                 box = frame.locator(name).bounding_box()
                 assert 0 <= box['y'] and box['y'] + box['height'] <= height + 2, (width, name, box)
-            assert frame.locator('#bars').is_hidden()
+            assert frame.locator('#bars').is_visible() == desktop
+            assert frame.locator('#now-zones').is_visible() == desktop
+            assert frame.locator('#zoom-in').is_visible() == desktop
+            if desktop:
+                assert frame.locator('#sheet').bounding_box()['x'] == 0 and frame.locator('#sheet').bounding_box()['width'] == 420
+                assert frame.locator('#map').bounding_box()['x'] == 420
             assert actual.evaluate('odorMap.data.frames.filter(f=>f.kind==="observed").length') == 364
             assert actual.evaluate('odorMap.data.zones.length') == 3
             assert actual.evaluate('odorMap.data.zones.every(z=>z.ring.length>=30)')
@@ -60,8 +66,9 @@ def check():
             page.screenshot(path=f'artifacts/first-{width}.png', full_page=True)
 
             # Expand: six-hour bars, footnote with version and refresh time only.
-            frame.locator('#head').click()
-            assert actual.evaluate('odorMap.state.collapsed') is False
+            if not desktop:
+                frame.locator('#head').click()
+                assert actual.evaluate('odorMap.state.collapsed') is False
             expect(frame.locator('#bars')).to_be_visible()
             expect(frame.locator('#foot')).to_contain_text('냄새 나침반 v1')
             expect(frame.locator('#foot')).to_contain_text('갱신')
@@ -99,7 +106,7 @@ def check():
             expect(frame.locator('#head-label')).to_contain_text('오늘')
 
             # Zone list in 예보 picks the zone for map and 지금.
-            frame.locator('[data-zone="Z1"]').click()
+            frame.locator('#panel-content [data-zone="Z1"]').click()
             expect(frame.locator('#head-label')).to_contain_text('한강변')
             page.wait_for_timeout(1200)
             assert actual.evaluate('odorMap.state.position[0]') == 37.662
