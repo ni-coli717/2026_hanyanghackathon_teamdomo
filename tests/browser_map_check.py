@@ -138,10 +138,10 @@ def check():
             assert actual.evaluate('odorMap.direction8(67.5)') == '동'
 
             # Tile failure surfaces and recovers.
-            page.route('**/basemaps.cartocdn.com/**', lambda route: route.abort())
+            page.route('**/tile.openstreetmap.org/**', lambda route: route.abort())
             actual.evaluate('odorMap.map.eachLayer(l=>{if(l instanceof L.TileLayer)l.redraw()})')
             expect(frame.locator('#tile-error')).to_be_visible(timeout=15000)
-            page.unroute('**/basemaps.cartocdn.com/**')
+            page.unroute('**/tile.openstreetmap.org/**')
             frame.locator('#retry').click()
             expect(frame.locator('#tile-error')).to_be_hidden()
 

@@ -12,7 +12,7 @@ a{color:var(--blue)}[hidden]{display:none!important}
 
 #shell{position:relative;height:100dvh}#map{position:absolute;inset:0;background:var(--land)}
 .leaflet-control-attribution{font-size:9px!important;background:rgba(255,255,255,.6)!important}.leaflet-bottom.leaflet-right{bottom:calc(var(--sheet-h,150px) + 4px)!important}
-.leaflet-container{font-family:inherit}
+.leaflet-container{font-family:inherit}.leaflet-tile-pane{filter:grayscale(.85) brightness(1.08) contrast(.82)}
 
 #header{position:absolute;left:16px;right:16px;top:14px;height:48px;z-index:600;display:flex;align-items:center;gap:8px;padding:0 16px;max-width:var(--sheet-w);margin:0 auto}
 #header strong{font-size:16px;font-weight:700}#header .muted{margin-left:auto}

@@ -209,8 +209,8 @@ function initialize(args){
  const bounds=L.geoJSON(data.boundary).getBounds();
  map=L.map('map',{zoomControl:false,attributionControl:true,maxBounds:bounds.pad(.10),maxBoundsViscosity:1,minZoom:10,maxZoom:17,zoomSnap:.5});
  if(state.center)map.setView(state.center,state.zoom||14);else map.fitBounds(L.latLngBounds(data.zones.flatMap(z=>z.ring)),{paddingTopLeft:[10,70],paddingBottomRight:[10,170],animate:false});   // 처음엔 세 구역이 시트 위로 다 보이게
- // 네이버 지도 키가 오기 전까지는 Carto Positron(글자·건물이 적은 회백색 베이스맵)
- tiles=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a>',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
+ // 네이버 지도 키가 오기 전까지는 OSM 타일을 CSS 로 흐리게(채도·대비 낮춤) 써서 구역 색만 보이게 한다. (Carto 는 키 필요)
+ tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
  tiles.on('tileerror',()=>{tileFailures++;if(tileFailures>=2)$('tile-error').hidden=false;});
  tiles.on('tileload',()=>{if(tileFailures===0)$('tile-error').hidden=true;});
  zoneLayer=L.layerGroup().addTo(map);labelLayer=L.layerGroup().addTo(map);
