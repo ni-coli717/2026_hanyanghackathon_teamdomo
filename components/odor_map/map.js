@@ -119,6 +119,7 @@ function render(){
  $('now-zone-list').innerHTML=zoneButtons(f,z);
  bindZoneButtons($('now-zone-list'));
  $('view-now').hidden=state.tab!=='now'||!!state.panel;$('view-tab').hidden=!$('view-now').hidden;
+ window.odorDevice?.renderCard();
  drawZones();renderPanel();
  requestAnimationFrame(()=>document.documentElement.style.setProperty('--sheet-h',`${$('sheet').offsetHeight}px`));
 }
@@ -134,7 +135,9 @@ function renderPanel(){
  const panel=state.panel,z=nearby(),f=frame(),s=stat(),w=windOf(f),pred=s.pred,forecast=isForecast(f);
  let title='',content='';
  $('back').hidden=!panel;
- if(panel==='zone'){
+ const dev=window.odorDevice?.panels?.[panel];
+ if(dev){const p=dev();title=p.title;content=p.content;}
+ else if(panel==='zone'){
   title=z?.name||'선택 위치';
   const rep=window.appArgs.recent?.[z?.id];
   content=rows({'위치':z?.subtitle||'관측 구역 밖','오늘 가능성':todayLevel(z?.id)||'추정 보류','바람':windText(w),
@@ -150,7 +153,7 @@ function renderPanel(){
  }else if(panel==='criteria'){
   title='집계 기준';content='<p>정기·실외 관측 중 냄새 유무를 판단한 응답만 집계합니다. 판단 어려움, 실내, 추가 제보는 분모에서 제외합니다.</p><p>같은 참여자의 같은 구역·시간 기록은 마지막 응답을 사용합니다. 유효 응답 3명 미만은 자료 부족입니다.</p><p>추가 제보와 기기 버튼 제보는 감지율에 넣지 않고 ‘제보’로 따로 표시합니다.</p><p>구역 경계는 가장 가까운 대표점 기준 1.5 km 입니다. 실측 경계가 정해지면 바뀝니다.</p>';
  }else if(panel==='privacy'){
-  title='위치 · 개인정보';content='<p>내 위치는 버튼을 눌러 권한을 허용할 때만 확인합니다. 좌표는 조회 계산에만 쓰고 저장하지 않습니다.</p><p>2 km 이내의 가장 가까운 관측 구역을 기준으로 보여줍니다. 건물별 예측이 아닙니다.</p><p>지난 기록은 예보 탭에서 고른 과거 시각입니다. 최신 자료가 1시간 넘게 오래되면 갱신 지연입니다.</p>';
+  title='위치 · 개인정보';content='<p>우리 집 검색어는 OpenStreetMap 검색으로 보내고, 집 좌표는 이 브라우저에만 저장합니다. 서버에는 구역만 저장합니다.</p><p>내 위치는 버튼을 눌러 권한을 허용할 때만 확인합니다. 좌표는 조회 계산에만 쓰고 저장하지 않습니다.</p><p>2 km 이내의 가장 가까운 관측 구역을 기준으로 보여줍니다. 건물별 예측이 아닙니다.</p><p>지난 기록은 예보 탭에서 고른 과거 시각입니다. 최신 자료가 1시간 넘게 오래되면 갱신 지연입니다.</p>';
  }else if(panel==='air'){
   const d=window.appArgs.device||{},enabled=state.auto_enabled!==false;
   const devState=d.connected?`연결됨 · ${d.device_fan===true?'가동 중':d.device_fan===false?'대기 중':'응답 대기'}${d.simulator?' · 시뮬레이터':''}`:(d.status||'연결된 기기 없음');
@@ -180,9 +183,10 @@ function renderPanel(){
   content='<p>냄새를 느낀 자리에서 바로 기록하면 지도가 더 정확해집니다. 위치는 기록할 때만 확인합니다.</p>'+(/^https?:\/\//.test(url)?`<a class="primary" target="_blank" rel="noopener" href="${esc(url)}">냄새 기록하기</a>`:'<p class="muted">기록 앱 연결 · 준비 중</p>');
  }else{
   title='안내';
-  content=`<div class="menu"><button data-open="info">자료 정보</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button><button data-open="air">공기질 관리 기기</button></div><p class="muted" id="model-status">${esc(data.model?.ok?(data.model.status||''):`추정 보류 · ${data.model?.reason||''}`)}</p>`;
+  content=`<div class="menu"><button data-open="info">자료 정보</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button><button data-open="${window.odorDevice?.paired?'device':'pair'}">${window.odorDevice?.paired?'공기청정기 설정':'공기청정기 연결'}</button><button data-open="air">기기 USB 연결 (운영)</button></div><p class="muted" id="model-status">${esc(data.model?.ok?(data.model.status||''):`추정 보류 · ${data.model?.reason||''}`)}</p>`;
  }
  $('panel-title').textContent=title;$('panel-content').innerHTML=content;
+ if(dev)window.odorDevice.bind(panel);
  $('panel-content').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openPanel(b.dataset.open));
  bindZoneButtons($('panel-content'));
  const slider=$('time-slider');if(slider)slider.oninput=e=>{stop();setTime(Number(e.target.value));};
@@ -223,7 +227,8 @@ function initialize(args){
  zoneLayer=L.layerGroup().addTo(map);labelLayer=L.layerGroup().addTo(map);
  accuracy=L.circle(state.position,{radius:0,color:'#2D7FF9',weight:0,fillColor:'#2D7FF9',fillOpacity:0,interactive:false}).addTo(map);
  pin=L.marker(state.position,{icon:L.divIcon({className:'sel-dot',iconSize:[12,12],iconAnchor:[6,6]}),title:'기준 위치',zIndexOffset:1000,keyboard:false}).addTo(map).on('click',()=>openPanel('zone'));
- map.on('click',e=>{if(picking)choose([e.latlng.lat,e.latlng.lng]);});
+ map.on('click',e=>{if(window.odorDevice?.pickingHome){window.odorDevice.homePicked(e.latlng);return;}if(picking)choose([e.latlng.lat,e.latlng.lng]);});
+ window.map=map;
  map.on('moveend',()=>{if(rendered)send();});
  $('pick').onclick=()=>{locationRequest++;picking=!picking;$('pick').classList.toggle('active',picking);if(picking)message('지도에서 위치를 누르세요');else hideMessage();};
  $('locate').onclick=()=>{

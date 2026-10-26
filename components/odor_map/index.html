@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>냄새 나침반</title>
-<link rel="stylesheet" href="vendor/leaflet.css"><link rel="stylesheet" href="map.css?v=3"></head>
+<link rel="stylesheet" href="vendor/leaflet.css"><link rel="stylesheet" href="map.css?v=4"></head>
 <body>
 <main id="shell">
  <div id="map" aria-label="운양동 지도. 구역을 누르면 그 구역 기준으로 보여줍니다."></div>
@@ -29,6 +29,7 @@
      <span class="head-text"><span id="head-label" class="muted">오늘 냄새 날 가능성</span><span id="head-sub"></span></span>
      <svg id="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 12l5-5 5 5" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
+    <div id="device-card" hidden></div>
     <div id="now-more">
      <div class="rule"></div>
      <div class="row"><strong id="ahead-title">앞으로 6시간</strong><span id="peak" class="peak"></span></div>
@@ -50,5 +51,5 @@
   </nav>
  </section>
 </main>
-<script src="vendor/leaflet.js"></script><script src="map.js?v=3"></script>
+<script src="vendor/leaflet.js"></script><script src="map.js?v=4"></script><script src="device.js?v=1"></script>
 </body></html>

@@ -456,6 +456,34 @@ def render_odor_model():
             st.rerun()
 
     with device_tab:
+        from core import device_cloud
+        st.markdown("##### 공기청정기 (서버 일정)")
+        if not device_cloud.configured():
+            st.info("secrets.toml 의 [database] url·anon_key 와 [device] token 이 필요합니다.")
+        else:
+            c1, c2, c3 = st.columns(3)
+            if c1.button("연결 코드 만들기", help="주민 앱 ‘공기청정기 연결’에 입력하는 6자리 코드 · 10분 유효"):
+                try:
+                    st.session_state.pair_code = device_cloud.new_pair_code()
+                except Exception as e:
+                    st.error(f"코드 발급 실패 · {e}")
+            for col, demo, label in ((c2, True, "시연 일정 쓰기"), (c3, False, "실제 예보로 다시 계산")):
+                if col.button(label):
+                    with st.spinner("계산 중"):
+                        ok, out = device_cloud.run_plan(demo)
+                    (st.success if ok else st.error)("완료" if ok else "실패")
+                    st.code(out)
+            if st.session_state.get("pair_code"):
+                code = st.session_state.pair_code
+                st.markdown(f"기기 **{device_cloud.device_id()}** · 연결 코드 **{code[:3]} {code[3:]}** · 10분 유효")
+            try:
+                now = device_cloud.current()
+                plan = now.get("plan") or {}
+                st.markdown(f"지금 명령 **{now.get('command')}** · {plan.get('reason', '일정 없음')} · 계산 {str(plan.get('computed_at', '—'))[:16]} ({plan.get('basis', '—')})")
+            except Exception as e:
+                st.warning(f"일정 조회 실패 · {e}")
+        st.divider()
+        st.markdown("##### USB 연결 기기 (조회 앱)")
         from core.device import read_status
         st.markdown(badge("운영 설정 · 공인 기준 아님", "#9A6B1F"), unsafe_allow_html=True)
         st.caption("공기질 관리 기기는 주민 조회 앱 프로세스가 USB로 연결합니다. 이 화면은 그 앱이 남긴 상태 파일(data/device_status.json)을 읽기만 합니다. "

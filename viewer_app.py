@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 import streamlit as st
-from core.config import data_mode, measurement_url, now_kst
+from core.config import data_mode, measurement_url, nested_setting, now_kst
 from core.public_data import dashboard, window_slots
 from core.map_data import prepare_payload, resolve_selection
 from core.map_component import odor_map
@@ -85,6 +85,17 @@ def prediction_row(predictions, at, zone_id):
     return rows.iloc[0].to_dict() if not rows.empty else {'status': '자료 없음'}
 
 
+def device_api():
+    """Browser-side access to the home air-purifier card (Supabase RPC with the publishable key only).
+    The publishable key is meant to be public; every device function still checks a per-browser token."""
+    url = nested_setting('database', 'url').rstrip('/')
+    key = nested_setting('database', 'anon_key')
+    if not url.startswith('https://') or not key:
+        return None
+    zone_map = {app: model for model, app in service.app_zone_ids().items()}
+    return {'url': url, 'key': key, 'zone_map': zone_map}
+
+
 def handle_device_command(link, state):
     cmd = state.get('device_cmd') or {}
     if not cmd or cmd.get('id', 0) <= st.session_state.get('device_cmd_done', 0):
@@ -164,7 +175,8 @@ def main():
     device, link = device_state(payload, predictions, selection, state)
     st.session_state.device_sig = link.signature()
     result = odor_map(payload=payload, selection=selection, initial_state=state, device=device,
-                      recent=recent_reports(link.reports_saved), measurement_url=measurement_url(), key='resident_map', default=None)
+                      recent=recent_reports(link.reports_saved), measurement_url=measurement_url(), device_api=device_api(),
+                      key='resident_map', default=None)
     if link.port:
         watch_device(link)
     if result and result.get('sequence',0)>state.get('sequence',0):
