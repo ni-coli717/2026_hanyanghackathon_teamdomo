@@ -1,0 +1,27 @@
+name: device-plan
+# 15분마다 기상청 예보 → 악취 모델 → 사전 작동 판단 → Supabase device_plan 저장
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"     # UTC 기준이지만 15분 간격이라 무관. GitHub 사정으로 몇 분 늦을 수 있음
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: "시연 가상 예보로 계산 (true/false)"
+        default: "false"
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install pandas numpy scipy joblib "scikit-learn==1.8.0" requests
+      - name: plan
+        env:
+          KMA_SERVICE_KEY: ${{ secrets.KMA_SERVICE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TZ: Asia/Seoul
+        run: |
+          if [ "${{ github.event.inputs.demo }}" = "true" ]; then python -m scripts.plan_devices --demo; else python -m scripts.plan_devices; fi
