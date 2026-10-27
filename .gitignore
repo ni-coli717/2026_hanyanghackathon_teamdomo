@@ -19,3 +19,4 @@ ext/esp32/odor_node/config.h
 data/private/
 
 push_github.bat
+commit_push.bat

@@ -119,7 +119,17 @@ def fetch_kma_forecast(service_key: str, nx: int = 55, ny: int = 129, base: dt.d
     url = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
     params = dict(serviceKey=service_key, pageNo=1, numOfRows=1000, dataType="JSON",
                   base_date=bd.strftime("%Y%m%d"), base_time=f"{bt:02d}00", nx=nx, ny=ny)
-    js = requests.get(url, params=params, timeout=20).json()
+    if "%" in service_key:                      # 공공데이터포털 '인코딩' 키를 넣어도 되게: requests 가 다시 인코딩한다
+        from urllib.parse import unquote
+        params["serviceKey"] = unquote(service_key)
+    r = requests.get(url, params=params, timeout=20)
+    try:
+        js = r.json()
+    except ValueError:                           # 인증 오류 등은 XML 로 온다 (SERVICE_KEY_IS_NOT_REGISTERED_ERROR 등)
+        raise RuntimeError(f"기상청 응답이 JSON 이 아님 ({r.status_code}) · {r.text[:160].strip()}") from None
+    header = (js.get("response") or {}).get("header") or {}
+    if "response" not in js or header.get("resultCode") not in (None, "00"):
+        raise RuntimeError(f"기상청 오류 · {header.get('resultCode', '?')} {header.get('resultMsg', str(js)[:160])}")
     items = js["response"]["body"]["items"]["item"]
     df = pd.DataFrame(items)
     piv = df.pivot_table(index=["fcstDate", "fcstTime"], columns="category", values="fcstValue", aggfunc="first").reset_index()

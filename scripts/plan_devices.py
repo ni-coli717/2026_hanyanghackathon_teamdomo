@@ -97,7 +97,19 @@ def main():
     else:
         if not cfg["kma_key"]:
             raise SystemExit("기상청 서비스키가 없습니다(KMA_SERVICE_KEY).")
-        weather = fetch_kma_forecast(cfg["kma_key"], cfg["nx"], cfg["ny"])
+        try:
+            weather = fetch_kma_forecast(cfg["kma_key"], cfg["nx"], cfg["ny"])
+        except Exception as e:  # noqa: BLE001
+            # 예보를 못 받으면 옛 일정(ON 등)을 그대로 두지 않고 '판단 보류'로 바꿔 둔다. 기기는 직전 상태를 유지한다.
+            print(f"예보 조회 실패 · {e}")
+            if not a.dry_run:
+                db = Supa(cfg["url"], cfg["key"])
+                for d in db.get("devices", select="device_id"):
+                    db.upsert("device_plan", [dict(device_id=d["device_id"], computed_at=dt.datetime.now(KST).isoformat(), basis="kma",
+                                                   issued="", action="HOLD", state="hold", reason=f"예보 조회 실패 · {str(e)[:80]}",
+                                                   next_on_at=None, next_odor_at=None, next_off_at=None, episodes=[])])
+                    db.insert("device_log", [dict(device_id=d["device_id"], kind="plan", detail=f"예보 조회 실패 · HOLD · {str(e)[:120]}")])
+            raise SystemExit(1)
         basis, issued = "kma", str(weather["source"].iloc[0]) if len(weather) else ""
     m = load_model()
     preds = predict_rows(weather, m)
