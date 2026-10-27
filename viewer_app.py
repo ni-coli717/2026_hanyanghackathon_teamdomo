@@ -10,6 +10,7 @@ from core.automation import make_rule
 from core.device import AppDeviceLink, basis_key
 from core.observations import observation_repository
 from core import account as acc
+acc.allow_clock_skew()   # 시계가 몇 분 틀린 PC 에서도 OIDC 로그인 허용
 from core.participation import summary as participation_summary, save_record
 from odor_model.device_service import push_prediction
 

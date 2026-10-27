@@ -1,5 +1,5 @@
 streamlit>=1.42,<2
-Authlib>=1.3.2        # st.login (카카오·구글 OIDC)
+Authlib==1.6.5        # st.login (카카오·구글 OIDC). 1.6.6+ 는 "NoneType item assignment" 오류
 pandas>=2.1
 numpy>=1.26
 scipy>=1.11

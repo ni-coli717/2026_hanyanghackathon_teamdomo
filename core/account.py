@@ -39,9 +39,13 @@ def providers() -> dict:
     """어떤 로그인 버튼을 켤지. 비밀값은 돌려주지 않는다."""
     auth = _auth_section()
     oidc_ready = bool(auth.get('redirect_uri') and auth.get('cookie_secret'))
+    def filled(v):   # 예시 파일의 자리표시('붙여넣기', '...')는 비어 있는 것으로 본다
+        v = str(v or '')
+        return bool(v) and '붙여넣기' not in v and v != '...'
+
     def ready(p):
-        sec = auth.get(p) or {}
-        return oidc_ready and bool(dict(sec).get('client_id') and dict(sec).get('client_secret'))
+        sec = dict(auth.get(p) or {})
+        return oidc_ready and filled(sec.get('client_id')) and filled(sec.get('client_secret'))
     return {'kakao': ready('kakao'), 'google': ready('google'), 'email': bool(_supabase())}
 
 
@@ -55,6 +59,29 @@ def operators() -> set:
         return {str(x).strip().lower() for x in _auth_section().get('operators', [])}
     except Exception:
         return set()
+
+
+# ------------------------------------------------------------------ 시계 오차 허용
+_LEEWAY_PATCHED = False
+
+
+def allow_clock_skew(seconds=600):
+    """ID 토큰 시각 검증 허용 오차를 늘린다. 컴퓨터 시계가 몇 분 틀려도(동기화 안 되는 PC) 카카오·구글 로그인이
+    'issued in the future' 로 실패하지 않게. Streamlit 이 Authlib 의 parse_id_token(leeway=120) 을 그대로 쓰므로 여기서 감싼다."""
+    global _LEEWAY_PATCHED
+    if _LEEWAY_PATCHED:
+        return
+    try:
+        from authlib.integrations.base_client import sync_openid
+    except Exception:  # noqa: BLE001
+        return
+    original = sync_openid.OpenIDMixin.parse_id_token
+
+    def parse_id_token(self, token, nonce, claims_options=None, claims_cls=None, leeway=120):
+        return original(self, token, nonce, claims_options=claims_options, claims_cls=claims_cls, leeway=max(leeway, seconds))
+
+    sync_openid.OpenIDMixin.parse_id_token = parse_id_token
+    _LEEWAY_PATCHED = True
 
 
 # ------------------------------------------------------------------ 로그인 상태
