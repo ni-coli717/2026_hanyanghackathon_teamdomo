@@ -20,15 +20,28 @@ def wait(cond, timeout=3.0):
     return False
 
 
-def row_at(at, zone='Z2'):
+def _predict_all():
     w = pd.read_csv('data/provided/weather.csv')
-    w = w[w.weather_at == at]
     res = service.predict_windows(pd.DataFrame(dict(window_start=w.weather_at, wind_from_deg=w.wd, wind_speed=w.ws,
                                                     humidity_pct=w.humidity, temperature_c=w.temp, rain_1h_mm=w.rain,
                                                     basis=w.weather_basis)))
     if set(res.status) == {'추정 보류'}:
         pytest.skip('model unavailable in this environment')
-    return res[res.app_zone_id == zone].iloc[0].to_dict()
+    return res
+
+
+def row_at(at, zone='Z2'):
+    res = _predict_all()
+    return res[(res.app_zone_id == zone) & (res.window_start == pd.Timestamp(at))].iloc[0].to_dict()
+
+
+def row_with(level, zone='Z2'):
+    """현재 번들 모델이 해당 단계를 내는 실제 관측 행. 모델이 재학습돼도 테스트가 특정 시각에 묶이지 않게."""
+    res = _predict_all()
+    hit = res[(res.app_zone_id == zone) & (res.status == '예비 추정') & (res.level == level)]
+    if hit.empty:
+        pytest.skip(f'현재 모델이 {zone} 에서 {level} 을 내는 관측 행이 없음')
+    return hit.iloc[0].to_dict()
 
 
 @pytest.fixture
@@ -65,17 +78,18 @@ def test_low_estimate_sends_off_and_standby(link):
 
 
 def test_two_highs_turn_fan_on(link):
-    rule, row = make_rule(), row_at('2026-09-15 22:00:00')
+    rule, row = make_rule(), row_with('높음')
     assert row['level'] == '높음'
-    assert push_prediction(link, rule, row, 'synthetic_climatology')['sent'] == 'ODOR|ENE|HIGH|OFF|DEMO'
-    assert push_prediction(link, rule, row, 'synthetic_climatology')['sent'] == 'ODOR|ENE|HIGH|ON|DEMO'
+    first = push_prediction(link, rule, row, 'synthetic_climatology')['sent']
+    assert first.startswith('ODOR|') and first.endswith('|HIGH|OFF|DEMO')          # 풍향은 행에 따라 다르다
+    assert push_prediction(link, rule, row, 'synthetic_climatology')['sent'] == first.replace('|OFF|', '|ON|')
     assert wait(lambda: link.device_fan is True)
     assert link.board.lcd()[1] == ['ODOR INFLOW EST', 'PURIFYING AIR...']
     assert link.board.leds()['green']
 
 
 def test_manual_override_is_not_overwritten(link):
-    rule, row = make_rule(), row_at('2026-09-15 22:00:00')
+    rule, row = make_rule(), row_with('높음')
     push_prediction(link, rule, row, 'synthetic_climatology'); push_prediction(link, rule, row, 'synthetic_climatology')
     assert wait(lambda: link.device_fan is True)
     link.board.press_short()                                   # resident turns it off on the board
@@ -109,7 +123,7 @@ def test_report_outside_zone_is_not_saved(link):
 
 
 def test_unplug_shows_disconnect_and_board_times_out(link):
-    rule, row = make_rule(), row_at('2026-09-15 22:00:00')
+    rule, row = make_rule(), row_with('높음')
     push_prediction(link, rule, row, 'synthetic_climatology'); push_prediction(link, rule, row, 'synthetic_climatology')
     assert wait(lambda: link.device_fan is True)
     board = link.board
