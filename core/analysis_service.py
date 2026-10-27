@@ -23,6 +23,8 @@ RETRAINED_DIR = ROOT / 'data/models/odor'
 SETTINGS_PATH = ROOT / 'data/model_settings.json'
 GEO_PATH = ROOT / 'data/geo/model_geo.json'
 SAMPLE_FORECAST = ROOT / 'odor_model/sample_forecast.csv'
+DEMO_FORECAST = ROOT / 'data/private/demo_forecast.csv'   # demo_prep 이 쓰는 시연 가상 예보(6시간 유효). 서버 기기 일정과 같은 자료
+DEMO_FORECAST_HOURS = 6
 MODEL_STATUS = '예비 실험·미보정'
 
 DEFAULT_SETTINGS = {
@@ -193,11 +195,38 @@ def predict_windows(weather_df: pd.DataFrame, model_name: str | None = None) -> 
 
 
 # ------------------------------------------------------------------ forecast
+def demo_forecast_mtime() -> float:
+    try:
+        return DEMO_FORECAST.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def demo_forecast(now) -> pd.DataFrame | None:
+    """demo_prep 가 남긴 시연 예보가 있고 6시간이 안 지났으면 그것을 쓴다(지도와 기기 일정이 같은 자료를 보게)."""
+    import time
+    mtime = demo_forecast_mtime()
+    if not mtime or time.time() - mtime > DEMO_FORECAST_HOURS * 3600:
+        return None
+    try:
+        rows = read_forecast_csv(str(DEMO_FORECAST))
+    except Exception:  # noqa: BLE001
+        return None
+    rows = rows[rows.window_start >= pd.Timestamp(now.replace(tzinfo=None)).floor('h')]
+    if rows.empty:
+        return None
+    rows['basis'] = 'demo'; rows['source'] = '시연 가상 예보'
+    return rows.reset_index(drop=True)
+
+
 def forecast_inputs(now=None) -> tuple[pd.DataFrame, dict]:
     """KMA short-term forecast when a key is configured; otherwise the sample CSV, labelled '시연 예보'.
     A failed KMA call is reported in meta['error'], never hidden."""
     from .config import nested_setting, now_kst
     now = now or now_kst()
+    demo = demo_forecast(now)
+    if demo is not None:
+        return demo, {'source': 'demo', 'label': '시연 예보', 'issued': '시연 가상 예보 · 기기 일정과 동일', 'error': ''}
     key = nested_setting('kma', 'service_key', '')
     error = ''
     if key:

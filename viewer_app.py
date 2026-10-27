@@ -21,7 +21,7 @@ def model_key():
     settings = service.load_settings()
     path = service.model_path(settings['active_model'])
     mtime = path.stat().st_mtime if path.exists() else 0
-    return json.dumps([str(path), mtime, settings, service.load_geo()], ensure_ascii=False, sort_keys=True)
+    return json.dumps([str(path), mtime, settings, service.load_geo(), service.demo_forecast_mtime()], ensure_ascii=False, sort_keys=True)
 
 
 @st.cache_data(show_spinner=False, max_entries=8)

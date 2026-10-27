@@ -24,3 +24,8 @@ DATA_MODE=demo는 원본 시나리오만 읽습니다. 주민 제출은 별도 �
 - 카카오·구글: `.streamlit/secrets.example.toml` 의 `[auth]`, `[auth.google]`, `[auth.kakao]` 를 `secrets.toml` 에 채운다 (`pip install Authlib`). 비어 있으면 그 버튼은 숨겨진다.
 - 운영자 계정(`[auth] operators`)에만 안내 탭에 "기기 USB 연결 (운영)" 이 보인다.
 - 로컬 점검: `run_tests.bat`(결과 data/private/pytest.txt), `http://localhost:8501/?diag=db`(APP_ENV=local 일 때만).
+
+## 시연 모드 (2026-10-28)
+- `run_demo_prep.bat`: 연결 코드 + 시연 가상 예보로 기기 일정. 같은 가상 예보를 `data/private/demo_forecast.csv`(6시간 유효)에 남겨 **앱 지도도 같은 예보**를 보여준다.
+- `run_demo_off.bat`: 시연 끝. 파일을 지우고 실제 예보로 다시 계산. (15분마다 도는 GitHub Actions 도 실제 예보로 덮어쓴다 — 시연은 직전에 준비)
+- 공기청정기 브리지: `run_device_bridge.bat`(Uno USB) / `run_device_sim.bat`(보드 없이). 로그 `data/private/bridge.log`.

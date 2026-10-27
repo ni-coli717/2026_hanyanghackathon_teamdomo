@@ -11,6 +11,9 @@ from core.public_data import dashboard, window_slots
 
 @pytest.fixture(scope='module')
 def demo():
+    import os
+    os.environ['KMA_SERVICE_KEY'] = ''              # 이 컴퓨터의 secrets 와 무관하게 시연 예보 파일로 계산
+    service.DEMO_FORECAST = service.ROOT / 'nonexistent_demo_forecast.csv'
     reports, weather, zones, _, windows, _ = dashboard('demo')
     slots = window_slots('demo')
     model, info = service.load_model()
@@ -137,3 +140,21 @@ def test_direction_rule_matches_ne_example():
     if set(res.status) == {'추정 보류'}:
         pytest.skip('model unavailable')
     assert set(res.move_to_deg) == {225.0} and set(res.wind_from_sector) == {'북동'}
+
+
+def test_demo_forecast_override(tmp_path, monkeypatch):
+    import time
+    import pandas as pd
+    from core import analysis_service as svc
+    from core.config import now_kst
+    path = tmp_path / 'demo_forecast.csv'
+    monkeypatch.setattr(svc, 'DEMO_FORECAST', path)
+    assert svc.demo_forecast(now_kst()) is None
+    t0 = pd.Timestamp(now_kst().replace(tzinfo=None)).floor('h')
+    pd.DataFrame([dict(window_start=t0 + pd.Timedelta(hours=k), wind_from_deg=20.0, wind_speed=2.5, humidity_pct=95.0,
+                       temperature_c=15.0, rain_1h_mm=0.0) for k in range(4)]).to_csv(path, index=False)
+    rows, meta = svc.forecast_inputs()
+    assert meta['source'] == 'demo' and len(rows) == 4 and (rows.basis == 'demo').all()
+    old = time.time() - 7 * 3600
+    import os; os.utime(path, (old, old))
+    assert svc.demo_forecast(now_kst()) is None

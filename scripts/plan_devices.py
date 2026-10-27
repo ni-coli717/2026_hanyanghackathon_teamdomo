@@ -92,8 +92,14 @@ def main():
     cfg = config()
     now = pd.Timestamp(a.now) if a.now else pd.Timestamp(dt.datetime.now(KST).replace(tzinfo=None))
 
+    demo_csv = ROOT / "data" / "private" / "demo_forecast.csv"
     if a.demo:
         weather, basis, issued = demo_weather(now), "demo", "시연 가상 예보"
+        # 앱 지도도 같은 가상 예보를 보도록 남긴다(core/analysis_service.demo_forecast, 6시간 유효, 저장소에 안 올라감)
+        demo_csv.parent.mkdir(parents=True, exist_ok=True)
+        weather.to_csv(demo_csv, index=False, encoding="utf-8")
+    elif demo_csv.exists():
+        demo_csv.unlink()   # 실제 예보로 돌아오면 지도도 실제 예보로
     else:
         if not cfg["kma_key"]:
             raise SystemExit("기상청 서비스키가 없습니다(KMA_SERVICE_KEY).")

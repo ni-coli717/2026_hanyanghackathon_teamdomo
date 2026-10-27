@@ -2,6 +2,7 @@
 
   python -m scripts.demo_prep            # 코드 + 시연 일정
   python -m scripts.demo_prep --code     # 코드만
+  python -m scripts.demo_prep --off      # 시연 끝: 실제 예보로 일정·지도 되돌리기
 결과는 화면과 data/private/demo_prep.txt 에 남는다(저장소에 올라가지 않음). 키·토큰은 출력하지 않는다.
 """
 from __future__ import annotations
@@ -19,9 +20,15 @@ OUT = ROOT / 'data' / 'private' / 'demo_prep.txt'
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--code', action='store_true'); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument('--code', action='store_true'); ap.add_argument('--off', action='store_true'); a = ap.parse_args()
     db, dev = _secrets_section('database'), _secrets_section('device')
     lines = [f'[{dt.datetime.now():%Y-%m-%d %H:%M:%S}]']
+    if a.off:
+        p = subprocess.run([sys.executable, '-m', 'scripts.plan_devices'], cwd=ROOT, capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', env={**__import__('os').environ, 'PYTHONIOENCODING': 'utf-8'})
+        lines.append('시연 해제 · 실제 예보 일정 ' + ('완료' if p.returncode == 0 else '실패'))
+        lines.append((p.stdout + p.stderr).strip()[-1500:])
+        text = '\n'.join(lines); print(text); OUT.parent.mkdir(parents=True, exist_ok=True); OUT.write_text(text + '\n', encoding='utf-8'); return
     r = requests.post(db['url'].rstrip('/') + '/rest/v1/rpc/device_new_pair_code',
                       headers={'apikey': db['anon_key'], 'Content-Type': 'application/json'},
                       data=json.dumps({'p_device': dev.get('id', 'AP01'), 'p_token': dev['token']}), timeout=20)
