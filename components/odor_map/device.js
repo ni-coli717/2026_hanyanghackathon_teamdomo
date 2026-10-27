@@ -7,7 +7,7 @@ const KEY='odor.device.v1';
 const STALE_MS=5*60000;
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){return null;}}
 function save(v){try{if(v)localStorage.setItem(KEY,JSON.stringify(v));else localStorage.removeItem(KEY);}catch(e){}}
-let cfg=load(),info=null,err='',busy=false,poll=null,msg='',msgTimer=null,results=[],searching=false,homeMarker=null;
+let started=false,cfg=load(),info=null,err='',busy=false,poll=null,msg='',msgTimer=null,results=[],searching=false,homeMarker=null;
 function flash(t){msg=t;clearTimeout(msgTimer);msgTimer=setTimeout(()=>{msg='';renderCard();},4000);}
 const api=()=>window.appArgs?.device_api||null;
 const hm=iso=>{if(!iso)return '—';const p=parts(iso);return `${p.hour}:${p.minute}`;};
@@ -62,6 +62,7 @@ function renderCard(){
  const el=$('device-card');if(!el)return;
  drawHome();
  if(!cfg||!api()){el.hidden=true;el.innerHTML='';return;}
+ if(!started){started=true;refresh();startPoll();}   // 서버 주소(appArgs)가 도착한 뒤 첫 조회
  const v=view(),mode=info?.settings?.mode||'auto',name=info?.settings?.name||'우리 집 공기청정기';
  el.hidden=false;
  el.innerHTML=`<div class="dev-top"><strong>${esc(name)}</strong><span class="pill ${v.pill}">${esc(v.label)}</span></div>
@@ -140,7 +141,7 @@ function bind(panel){
    const id=($('dev-id').value||'').trim().toUpperCase(),code=boxes.map(b=>b.value).join('');
    if(!id||code.length!==6){msg='기기 번호와 6자리 코드';renderPanel();return;}
    busy=true;msg='';
-   try{const token=await rpc('device_pair',{p_device:id,p_code:code});cfg={id,token,home:null};save(cfg);startPoll();await refresh();busy=false;openPanel('device');}
+   try{const token=await rpc('device_pair',{p_device:id,p_code:code});cfg={id,token,home:null};save(cfg);started=true;startPoll();await refresh();busy=false;openPanel('device');}
    catch(e){busy=false;msg=e.message;renderPanel();}
   };
  }else if(panel==='device'){
@@ -160,6 +161,5 @@ function homePicked(latlng){
 }
 const api_={pickingHome:false,renderCard,panels,bind,homePicked,refresh,get paired(){return !!cfg;},get info(){return info;}};
 window.odorDevice=api_;
-if(cfg){refresh();startPoll();}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cfg)refresh();});
 })();
