@@ -24,14 +24,14 @@ async function refresh(){
  if(!cfg)return;
  try{info=await rpc('device_get',{p_device:cfg.id,p_token:cfg.token});err='';}
  catch(e){err=e.message;if(err==='연결 해제됨'){cfg=null;info=null;save(null);}}
- renderCard();
+ renderCard();window.odorApp?.renderDevBtn();
 }
 function startPoll(){if(poll||!cfg)return;poll=setInterval(()=>{if(!document.hidden)refresh();},60000);}
 async function setDevice(extra,note){
  if(!cfg||busy)return;busy=true;msg='';renderCard();
  try{await rpc('device_set',{p_device:cfg.id,p_token:cfg.token,...extra});await refresh();flash(note||'저장됨');}
  catch(e){flash(e.message);}
- busy=false;renderCard();if(state.panel==='device')renderPanel();
+ busy=false;renderCard();if(state.panel==='device'||state.panel==='devhome')renderPanel();window.odorApp?.renderDevBtn();
 }
 // ------------------------------------------------------------------ 카드 상태
 function view(){
@@ -151,7 +151,7 @@ function bind(panel){
   $('home-map').onclick=()=>{api_.pickingHome=true;state.panel='';state.collapsed=true;render();message('지도에서 우리 집을 누르세요');};
   root.querySelectorAll('[data-lead]').forEach(b=>b.onclick=()=>setDevice({p_lead:+b.dataset.lead},'저장됨 · 15분 안에 반영'));
   root.querySelectorAll('[data-trigger]').forEach(b=>b.onclick=()=>setDevice({p_trigger:b.dataset.trigger},'저장됨 · 15분 안에 반영'));
-  $('unpair').onclick=async()=>{try{await rpc('device_unpair',{p_device:cfg.id,p_token:cfg.token});}catch(e){}cfg=null;info=null;save(null);msg='';openPanel('');setTab('help');};
+  $('unpair').onclick=async()=>{try{await rpc('device_unpair',{p_device:cfg.id,p_token:cfg.token});}catch(e){}cfg=null;info=null;save(null);msg='';openPanel('devhome');};
  }
 }
 function homePicked(latlng){
@@ -159,7 +159,8 @@ function homePicked(latlng){
  setHome('지도에서 선택',latlng.lat,latlng.lng);
  openPanel('device');
 }
-const api_={pickingHome:false,renderCard,panels,bind,homePicked,refresh,get paired(){return !!cfg;},get info(){return info;}};
+const api_={pickingHome:false,renderCard,panels,bind,homePicked,refresh,get paired(){return !!cfg;},get info(){return info;},summary:()=>cfg&&api()?view():null,
+ homeZoneName:()=>{const z=(data?.zones||[]).find(x=>x.id===(cfg?.home?.zone||toApp(info?.settings?.zone_id)));return z?.name||null;}};
 window.odorDevice=api_;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cfg)refresh();});
 })();

@@ -17,3 +17,5 @@ ext/esp32/odor_node/config.h
 
 # resident report originals and anonymisation keys (never commit)
 data/private/
+
+push_github.bat

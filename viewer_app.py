@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 import streamlit as st
-from core.config import data_mode, measurement_url, nested_setting, now_kst
+from core.config import data_mode, nested_setting, now_kst, setting
 from core.public_data import dashboard, window_slots
 from core.map_data import prepare_payload, resolve_selection
 from core.map_component import odor_map
@@ -9,6 +9,8 @@ from core import analysis_service as service
 from core.automation import make_rule
 from core.device import AppDeviceLink, basis_key
 from core.observations import observation_repository
+from core import account as acc
+from core.participation import summary as participation_summary, save_record
 from odor_model.device_service import push_prediction
 
 RECENT_HOURS = 3
@@ -96,6 +98,120 @@ def device_api():
     return {'url': url, 'key': key, 'zone_map': zone_map}
 
 
+# ------------------------------------------------------------------ 계정
+def _profile(store, user):
+    """프로필은 세션에 한 번만 읽어 둔다(바뀌면 _profile_set 으로 갱신)."""
+    if user is None or store is None:
+        return None
+    cache = st.session_state.get('profile_cache')
+    if cache and cache[0] == user['key']:
+        return cache[1]
+    try:
+        profile = store.get(user['key'])
+    except RuntimeError:
+        st.session_state.auth_notice = '서버 연결 실패 · 새로고침'
+        return None
+    st.session_state.profile_cache = (user['key'], profile)
+    return profile
+
+
+def _profile_set(user, profile):
+    st.session_state.profile_cache = (user['key'], profile)
+
+
+def account_state():
+    user, store = acc.current_user(), acc.profile_store()
+    profile = _profile(store, user)
+    pub = acc.public_account(user, profile, store_ok=store is not None)
+    pub['providers'] = acc.providers()
+    pub['notice'] = st.session_state.pop('auth_notice', '')
+    pub['cmd_done'] = st.session_state.get('auth_cmd_done', 0)
+    if 'email_refresh' in st.session_state:
+        pub['refresh'] = st.session_state.pop('email_refresh')
+    return pub, user, profile, store
+
+
+def handle_auth_command(state):
+    cmd = state.get('auth_cmd') or {}
+    if not cmd or cmd.get('id', 0) <= st.session_state.get('auth_cmd_done', 0):
+        return
+    st.session_state.auth_cmd_done = cmd['id']
+    op = cmd.get('op')
+    try:
+        if op == 'login':
+            if acc.providers().get(cmd.get('provider')):
+                st.login(cmd['provider'])
+            else:
+                st.session_state.auth_notice = '이 로그인은 아직 준비 중'
+        elif op in ('email_login', 'email_signup', 'resume'):
+            fn = {'email_login': lambda: acc.email_login(cmd.get('email', ''), cmd.get('password', '')),
+                  'email_signup': lambda: acc.email_signup(cmd.get('email', ''), cmd.get('password', '')),
+                  'resume': lambda: acc.email_resume(cmd.get('refresh', ''))}[op]
+            session = fn()
+            if session:
+                st.session_state.email_user = {k: v for k, v in session.items() if k != 'refresh'}
+                st.session_state.email_refresh = session.get('refresh', '')
+                st.session_state.pop('profile_cache', None)
+            elif op == 'resume':
+                st.session_state.email_refresh = ''
+        elif op == 'logout':
+            if acc.oidc_user():
+                st.logout()
+            st.session_state.pop('email_user', None); st.session_state.pop('profile_cache', None); st.session_state.email_refresh = ''
+        else:
+            user, store = acc.current_user(), acc.profile_store()
+            if user is None or store is None:
+                st.session_state.auth_notice = '로그인 또는 저장소 확인'; return
+            profile = _profile(store, user)
+            if op == 'signup':
+                _profile_set(user, acc.create_profile(store, user, cmd.get('nickname'), cmd.get('consents') or [], cmd.get('code'),
+                                                      notify='notify' in (cmd.get('consents') or [])))
+            elif profile is None:
+                st.session_state.auth_notice = '가입 먼저'
+            elif op == 'tutorial_done':
+                _profile_set(user, acc.update_profile(store, profile, tutorial_done=True))
+            elif op == 'nickname':
+                _profile_set(user, acc.update_profile(store, profile, nickname=(cmd.get('value') or '').strip())); st.session_state.auth_notice = '닉네임 저장됨'
+            elif op == 'notify':
+                _profile_set(user, acc.update_profile(store, profile, notify=bool(cmd.get('value'))))
+            elif op == 'link_code':
+                code = (cmd.get('code') or '').strip().upper()
+                if not acc.CODE_RE.match(code): raise ValueError('참여 코드 확인')
+                if code != profile['participant_code'] and store.code_taken(code): raise ValueError('이미 다른 계정에 연결된 코드')
+                _profile_set(user, acc.update_profile(store, profile, legacy_code=code)); st.session_state.auth_notice = f'{code} 연결됨'
+            elif op == 'withdraw':
+                acc.update_profile(store, profile, nickname='탈퇴 계정', email='', consents=[], withdrawn=True)
+                if acc.oidc_user(): st.logout()
+                st.session_state.pop('email_user', None); st.session_state.pop('profile_cache', None); st.session_state.email_refresh = ''
+    except (acc.EmailAuthError, ValueError) as e:
+        st.session_state.auth_notice = str(e)
+    except RuntimeError:
+        st.session_state.auth_notice = '서버 연결 실패'
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def participation(code, legacy, version):
+    try:
+        repo, _ = observation_repository()
+    except Exception:
+        repo = None
+    return participation_summary(repo, code, legacy)
+
+
+def handle_record_command(state, code):
+    cmd = state.get('record_cmd') or {}
+    if not cmd or cmd.get('id', 0) <= st.session_state.get('record_cmd_done', 0):
+        return
+    st.session_state.record_cmd_done = cmd['id']
+    try:
+        repo, _ = observation_repository()
+    except Exception:
+        repo = None
+    st.session_state.record_result = save_record(repo, code, cmd)
+    if st.session_state.record_result.get('ok'):
+        st.session_state.record_version = st.session_state.get('record_version', 0) + 1
+
+
 def handle_device_command(link, state):
     cmd = state.get('device_cmd') or {}
     if not cmd or cmd.get('id', 0) <= st.session_state.get('device_cmd_done', 0):
@@ -164,18 +280,35 @@ def main():
     iframe[title="core.map_component.odor_map"]{display:block;width:100%;height:100dvh;border:0}
     html,body,.stApp,[data-testid="stAppViewContainer"]{overflow:hidden}
     </style>''',unsafe_allow_html=True)
+    if st.query_params.get('diag') == 'db' and setting('APP_ENV', 'cloud') == 'local':
+        # 로컬 전용 연결 점검(키는 출력하지 않는다): http://localhost:8501/?diag=db
+        from scripts.db_check import run_checks
+        st.code('\n'.join(run_checks())); return
+    state = st.session_state.get('map_state', {})
+    handle_auth_command(state)
+    account, user, profile, _ = account_state()
+    if account['status'] != 'ok':
+        # 로그인·가입·사용법 전에는 지도 자료를 보내지 않는다.
+        result = odor_map(payload=None, selection=None, initial_state=state, account=account, key='resident_map', default=None)
+        if result and result.get('sequence',0)>state.get('sequence',0):
+            st.session_state.map_state=result
+            st.rerun()
+        return
+    code = profile['participant_code']
+    handle_record_command(state, code)
     try:
         payload, predictions = map_payload(data_mode(), model_key())
     except Exception:
         st.error('서버 연결 실패')
         if st.button('다시 시도'): st.rerun()
         return
-    state = st.session_state.get('map_state', {})
     selection = resolve_selection(payload,state)
     device, link = device_state(payload, predictions, selection, state)
     st.session_state.device_sig = link.signature()
-    result = odor_map(payload=payload, selection=selection, initial_state=state, device=device,
-                      recent=recent_reports(link.reports_saved), measurement_url=measurement_url(), device_api=device_api(),
+    part = participation(code, profile.get('legacy_code'), st.session_state.get('record_version', 0)) if state.get('tab') in ('part',) or state.get('panel') == 'account' or st.session_state.get('record_result') else None
+    result = odor_map(payload=payload, selection=selection, initial_state=state, device=device, account=account,
+                      participation=part, record=st.session_state.get('record_result'),
+                      recent=recent_reports(link.reports_saved + st.session_state.get('record_version', 0)), device_api=device_api(),
                       key='resident_map', default=None)
     if link.port:
         watch_device(link)

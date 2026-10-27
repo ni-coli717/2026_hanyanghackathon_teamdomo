@@ -17,3 +17,10 @@ DATA_MODE=demo는 원본 시나리오만 읽습니다. 주민 제출은 별도 �
 관리자 앱은 공개 메뉴에서 연결하지 않습니다. python -m core.auth로 생성한 해시를 admin.password_hash에 설정한 뒤 로컬에서 실행합니다. 비밀 설정은 Git에 커밋하지 않습니다.
 
 현재 live 기상 API와 실제 Supabase 계정 연동 검증은 남아 있습니다. 설정 전체와 로컬 명령은 README.md 및 .streamlit/secrets.example.toml을 참고하세요.
+
+## 로그인 · 계정 (2026-10-27, v3)
+- 앱은 로그인 후에만 지도를 보여준다. 카카오·구글은 Streamlit `st.login`(OIDC), 이메일은 Supabase Auth.
+- Supabase SQL: `deployment/supabase.sql`(observations) → `deployment/accounts.sql`(profiles). Authentication → Providers → Email 에서 시연 중엔 "Confirm email" 끔.
+- 카카오·구글: `.streamlit/secrets.example.toml` 의 `[auth]`, `[auth.google]`, `[auth.kakao]` 를 `secrets.toml` 에 채운다 (`pip install Authlib`). 비어 있으면 그 버튼은 숨겨진다.
+- 운영자 계정(`[auth] operators`)에만 안내 탭에 "기기 USB 연결 (운영)" 이 보인다.
+- 로컬 점검: `run_tests.bat`(결과 data/private/pytest.txt), `http://localhost:8501/?diag=db`(APP_ENV=local 일 때만).

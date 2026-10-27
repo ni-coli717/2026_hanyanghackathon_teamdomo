@@ -2,17 +2,18 @@
 // 냄새 나침반 첫 화면. Native Streamlit component protocol. 추정값은 전부 Python(analysis_service)에서 오고 여기서는 보여주기만 한다.
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let data, state, map, tiles, zoneLayer, labelLayer, pin, accuracy, selection, timer=null, picking=false, rendered=false, tileFailures=0, locationRequest=0, arrowAngle=null;
+let data, state=null, map, tiles, zoneLayer, labelLayer, pin, accuracy, selection, timer=null, picking=false, rendered=false, tileFailures=0, locationRequest=0, arrowAngle=null;
+const zonePolys={};   // 구역 면은 한 번 만들고 색만 바꾼다(색 전환 600ms)
 const emptyStat={n:0,detected:0,status:'자료 없음',type:'unknown',odor_evidence:false,median:null,pred:null,arrow:'none'};
 const LEVELS=['낮음','보통','높음'];
 const LEVEL_CLASS={'낮음':'low','보통':'mid','높음':'high'};
 const COLORS={low:'#2E8B57',mid:'#E0A100',high:'#D64533',hold:'#9AA5AE'};
-const TABS={now:'지금',forecast:'예보',record:'기록',help:'안내'};
+const TABS={now:'지금',forecast:'예보',part:'참여',help:'안내'};
 const desktop=()=>window.matchMedia('(min-width:900px)').matches;   // 데스크톱: 왼쪽 패널, 시트 접힘 없음
 const post=(type,extra={})=>window.parent.postMessage({isStreamlitMessage:true,type,...extra},'*');
 function send(){
- if(!map||!state)return;
- state.center=[map.getCenter().lat,map.getCenter().lng];state.zoom=map.getZoom();
+ if(!state)return;
+ if(map){state.center=[map.getCenter().lat,map.getCenter().lng];state.zoom=map.getZoom();}
  state.sequence=(state.sequence||0)+1;
  post('streamlit:setComponentValue',{value:{...state},dataType:'json'});
 }
@@ -67,13 +68,15 @@ function choose(position,kind='selected'){
 }
 // ------------------------------------------------------------------ 지도
 function drawZones(){
- zoneLayer.clearLayers();labelLayer.clearLayers();
+ labelLayer.clearLayers();
  const f=frame(),sel=nearby(),forecast=isForecast(f);
  data.zones.forEach(z=>{
   const level=state.tab==='forecast'?levelOf(f,z.id):todayLevel(z.id);
   const cls=LEVEL_CLASS[level]||'hold',color=COLORS[cls];
-  const poly=L.polygon(z.ring,{color,weight:sel?.id===z.id?2.5:1.5,fillColor:color,fillOpacity:cls==='hold'?.16:.28,bubblingMouseEvents:false}).addTo(zoneLayer);
-  poly.on('click',()=>{choose([z.lat,z.lon]);openPanel('zone');});
+  const style={color,weight:sel?.id===z.id?2.5:1.5,fillColor:color,fillOpacity:cls==='hold'?.16:.28};
+  let poly=zonePolys[z.id];
+  if(!poly){poly=zonePolys[z.id]=L.polygon(z.ring,{...style,bubblingMouseEvents:false}).addTo(zoneLayer);poly.on('click',()=>{choose([z.lat,z.lon]);openPanel('zone');});}
+  else poly.setStyle(style);
   const s=f?.zones[z.id]||emptyStat,rep=window.appArgs.recent?.[z.id];
   const sub=level||(forecast?'예보 없음':s.status==='자료 없음'?'추정 보류':s.status);
   const html=`<b>${esc(z.name)}</b><i class="lv-${cls}">${esc(sub)}${rep?` · 제보 ${rep.count}`:''}</i>`;
@@ -119,7 +122,7 @@ function render(){
  $('now-zone-list').innerHTML=zoneButtons(f,z);
  bindZoneButtons($('now-zone-list'));
  $('view-now').hidden=state.tab!=='now'||!!state.panel;$('view-tab').hidden=!$('view-now').hidden;
- window.odorDevice?.renderCard();
+ window.odorDevice?.renderCard();window.odorApp?.renderChip();window.odorApp?.renderDevBtn();
  drawZones();renderPanel();
  requestAnimationFrame(()=>document.documentElement.style.setProperty('--sheet-h',`${$('sheet').offsetHeight}px`));
 }
@@ -133,10 +136,12 @@ function setTab(tab){stop();state.tab=tab;state.panel='';if(tab!=='now')state.co
 function renderPanel(){
  if($('view-tab').hidden)return;
  const panel=state.panel,z=nearby(),f=frame(),s=stat(),w=windOf(f),pred=s.pred,forecast=isForecast(f);
- let title='',content='';
+ let title='',content='',aside='';
  $('back').hidden=!panel;
  const dev=window.odorDevice?.panels?.[panel];
+ const app=window.odorApp?.panels?.[panel||state.tab];
  if(dev){const p=dev();title=p.title;content=p.content;}
+ else if(app){const p=app();title=p.title;content=p.content;aside=p.aside||'';if(p.back)$('back').hidden=false;}
  else if(panel==='zone'){
   title=z?.name||'선택 위치';
   const rep=window.appArgs.recent?.[z?.id];
@@ -178,15 +183,11 @@ function renderPanel(){
    <div class="tl-controls"><button id="previous" aria-label="이전 시각" ${index<=0?'disabled':''}>‹</button><input id="time-slider" type="range" min="0" max="${Math.max(0,data.frames.length-1)}" value="${Math.max(0,index)}" step="1" aria-label="시각" aria-valuetext="${esc(fmt(f?.at))} ${esc(mode)}" ${f?'':'disabled'}><button id="next" aria-label="다음 시각" ${index<0||index>=data.frames.length-1?'disabled':''}>›</button></div>
    <div class="row"><span class="muted">${ahead>0?`예보 ~${esc(fmt(data.frames.at(-1).at))}`:'미래 자료 없음'}${w?` · ${esc(windText(w))}`:''}</span><button id="latest" class="chipbtn" ${index===li?'disabled':''}>최신</button></div></div>
    <div class="zones">${zones}</div><p class="muted">구역을 누르면 지도와 ‘지금’ 탭이 그 구역 기준이 됩니다.</p>`;
- }else if(state.tab==='record'){
-  title='냄새 기록';const url=window.appArgs.measurement_url||'';
-  content='<p>냄새를 느낀 자리에서 바로 기록하면 지도가 더 정확해집니다. 위치는 기록할 때만 확인합니다.</p>'+(/^https?:\/\//.test(url)?`<a class="primary" target="_blank" rel="noopener" href="${esc(url)}">냄새 기록하기</a>`:'<p class="muted">기록 앱 연결 · 준비 중</p>');
- }else{
-  title='안내';
-  content=`<div class="menu"><button data-open="info">자료 정보</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button><button data-open="${window.odorDevice?.paired?'device':'pair'}">${window.odorDevice?.paired?'공기청정기 설정':'공기청정기 연결'}</button><button data-open="air">기기 USB 연결 (운영)</button></div><p class="muted" id="model-status">${esc(data.model?.ok?(data.model.status||''):`추정 보류 · ${data.model?.reason||''}`)}</p>`;
  }
- $('panel-title').textContent=title;$('panel-content').innerHTML=content;
+ $('panel-title').textContent=title;$('panel-aside').innerHTML=aside;$('panel-content').innerHTML=content;
  if(dev)window.odorDevice.bind(panel);
+ if(app)window.odorApp.bindPanel(panel||state.tab);
+ $('panel-aside').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openPanel(b.dataset.open));
  $('panel-content').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openPanel(b.dataset.open));
  bindZoneButtons($('panel-content'));
  const slider=$('time-slider');if(slider)slider.oninput=e=>{stop();setTime(Number(e.target.value));};
@@ -216,7 +217,8 @@ function sheetDrag(el){
 function expand(open){state.collapsed=!open;if(!open){state.tab='now';state.panel='';}render();send();}
 function initialize(args){
  data=args.payload;selection=args.selection;
- state={position:selection.position,position_kind:'selected',at:selection.at,mode:'latest',tab:'now',panel:'',collapsed:true,auto_enabled:true,sequence:0,...args.initial_state};
+ const seq=Math.max(state?.sequence||0,args.initial_state?.sequence||0);
+ state={position:selection.position,position_kind:'selected',at:selection.at,mode:'latest',tab:'now',panel:'',collapsed:true,auto_enabled:true,...args.initial_state,sequence:seq};
  const bounds=L.geoJSON(data.boundary).getBounds();
  map=L.map('map',{zoomControl:false,attributionControl:true,maxBounds:bounds.pad(.10),maxBoundsViscosity:1,minZoom:10,maxZoom:17,zoomSnap:.5});
  if(state.center)map.setView(state.center,state.zoom||14);else map.fitBounds(L.latLngBounds(data.zones.flatMap(z=>z.ring)),{paddingTopLeft:[10,desktop()?20:70],paddingBottomRight:[10,desktop()?20:170],animate:false});   // 처음엔 세 구역이 다 보이게
@@ -251,12 +253,19 @@ function initialize(args){
 window.addEventListener('message',event=>{
  if(event.source!==window.parent||event.data?.type!=='streamlit:render')return;
  const args=event.data.args;window.appArgs=args;
- if(!window.L){$('tile-error').hidden=false;$('tile-error').querySelector('strong').textContent='지도 초기화 실패';$('retry').onclick=()=>location.reload();return;}
- if(!map)initialize(args);
- else if((args.selection.sequence||0)>=(state.sequence||0)){
-  // A newer local choice wins over an older server echo; the viewed time is never forced to latest.
-  data=args.payload;selection=args.selection;state.position=selection.position;state.at=selection.at;render();
- }
+ if(!state)state={sequence:args.initial_state?.sequence||0,...(args.initial_state||{})};
+ window.odorApp?.applyAccount(args.account);
+ if(args.payload){
+  const first=$('shell').hidden;$('shell').hidden=false;
+  if(!window.L){$('tile-error').hidden=false;$('tile-error').querySelector('strong').textContent='지도 초기화 실패';$('retry').onclick=()=>location.reload();return;}
+  if(!map)initialize(args);
+  else if((args.selection.sequence||0)>=(state.sequence||0)){
+   // A newer local choice wins over an older server echo; the viewed time is never forced to latest.
+   data=args.payload;selection=args.selection;state.position=selection.position;state.at=selection.at;render();
+  }
+  if(first&&map)setTimeout(()=>map.invalidateSize(),50);
+  window.odorApp?.applyRecordResult(args.record);
+ }else $('shell').hidden=true;
  post('streamlit:setFrameHeight',{height:window.innerHeight||900});
 });
 post('streamlit:componentReady',{apiVersion:1});

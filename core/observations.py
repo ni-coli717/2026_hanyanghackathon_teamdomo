@@ -102,7 +102,8 @@ class SharedObservations(ObservationRepository):
         if not url.startswith('https://') or not key:
             raise ValueError('공유 저장소 설정을 확인하세요.')
         self.url = url.rstrip('/') + '/rest/v1/observations'
-        self.headers = {'apikey':key, 'Authorization':f'Bearer {key}'}
+        # 새 형식 키(sb_secret_...)는 apikey 헤더만 받는다. JWT 형식(eyJ...)만 Authorization 을 같이 보낸다.
+        self.headers = {'apikey':key, **({'Authorization':f'Bearer {key}'} if key.startswith('eyJ') else {})}
 
     def _request(self, method, **kwargs):
         headers = {**self.headers, **kwargs.pop('headers', {})}

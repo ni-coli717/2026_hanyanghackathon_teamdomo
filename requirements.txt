@@ -1,4 +1,5 @@
-streamlit>=1.39,<2
+streamlit>=1.42,<2
+Authlib>=1.3.2        # st.login (카카오·구글 OIDC)
 pandas>=2.1
 numpy>=1.26
 scipy>=1.11
