@@ -87,13 +87,13 @@ def plan(predictions: pd.DataFrame, zone_id: str, now, lead_min: int = 40, tail_
     if active:
         wind = f"{active.wind_sector}풍 · " if active.wind_sector else ""
         if now < active.odor_start:
-            reason = f"{_hhmm(active.odor_start)} {wind}{active.peak_level} 예상 → {_hhmm(active.on_at)}부터 미리 가동"
+            reason = f"{_hhmm(active.odor_start)} {wind}{active.peak_level} 예상 → {_hhmm(active.on_at)}부터 가동"
             return _result("ON", "pre_run", merged, active, reason)
         reason = f"{wind}{active.peak_level} 예상 구간 · {_hhmm(active.off_at)}까지 가동"
         return _result("ON", "running", merged, active, reason)
     if upcoming:
         wind = f"{upcoming.wind_sector}풍 · " if upcoming.wind_sector else ""
-        reason = f"다음 미리 가동 {_hhmm(upcoming.on_at)} ({_hhmm(upcoming.odor_start)} {wind}{upcoming.peak_level} 예상)"
+        reason = f"{_hhmm(upcoming.on_at)} 가동 예정 ({_hhmm(upcoming.odor_start)} {wind}{upcoming.peak_level} 예상)"
         return _result("OFF", "standby", merged, upcoming, reason)
     horizon = valid["window_start"].max() + HOUR
     return _result("OFF", "standby", merged, None, f"{_hhmm(horizon)}까지 {trigger} 예상 없음 · 대기")

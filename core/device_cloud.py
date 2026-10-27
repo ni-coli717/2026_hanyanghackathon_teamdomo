@@ -43,5 +43,6 @@ def current() -> dict:
 def run_plan(demo: bool) -> tuple[bool, str]:
     """서버 정기 작업과 같은 계산을 지금 한 번 돌린다. demo=True 면 시연 가상 예보."""
     cmd = [sys.executable, '-m', 'scripts.plan_devices'] + (['--demo'] if demo else [])
-    p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
+    p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120,
+                       env={**__import__('os').environ, 'PYTHONIOENCODING': 'utf-8'})
     return p.returncode == 0, (p.stdout + p.stderr)[-3000:]

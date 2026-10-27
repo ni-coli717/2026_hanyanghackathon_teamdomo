@@ -7,7 +7,8 @@ const KEY='odor.device.v1';
 const STALE_MS=5*60000;
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){return null;}}
 function save(v){try{if(v)localStorage.setItem(KEY,JSON.stringify(v));else localStorage.removeItem(KEY);}catch(e){}}
-let cfg=load(),info=null,err='',busy=false,poll=null,msg='',results=[],searching=false,homeMarker=null;
+let cfg=load(),info=null,err='',busy=false,poll=null,msg='',msgTimer=null,results=[],searching=false,homeMarker=null;
+function flash(t){msg=t;clearTimeout(msgTimer);msgTimer=setTimeout(()=>{msg='';renderCard();},4000);}
 const api=()=>window.appArgs?.device_api||null;
 const hm=iso=>{if(!iso)return '—';const p=parts(iso);return `${p.hour}:${p.minute}`;};
 const toModel=z=>api()?.zone_map?.[z]||null;
@@ -28,8 +29,8 @@ async function refresh(){
 function startPoll(){if(poll||!cfg)return;poll=setInterval(()=>{if(!document.hidden)refresh();},60000);}
 async function setDevice(extra,note){
  if(!cfg||busy)return;busy=true;msg='';renderCard();
- try{await rpc('device_set',{p_device:cfg.id,p_token:cfg.token,...extra});msg=note||'저장됨';await refresh();}
- catch(e){msg=e.message;}
+ try{await rpc('device_set',{p_device:cfg.id,p_token:cfg.token,...extra});await refresh();flash(note||'저장됨');}
+ catch(e){flash(e.message);}
  busy=false;renderCard();if(state.panel==='device')renderPanel();
 }
 // ------------------------------------------------------------------ 카드 상태
@@ -65,7 +66,6 @@ function renderCard(){
  el.hidden=false;
  el.innerHTML=`<div class="dev-top"><strong>${esc(name)}</strong><span class="pill ${v.pill}">${esc(v.label)}</span></div>
   <div class="dev-main"><span class="dev-title ${v.cls}">${esc(v.title)}</span><span class="dev-why">${esc(v.why)}</span></div>
-  ${cells()}
   ${v.row?`<div class="dev-row"><span>${esc(v.row[0])}</span><b>${esc(v.row[1])}</b></div>`:''}
   <div class="dev-ctrl"><div class="seg" role="group" aria-label="동작 방식">${[['auto','자동'],['on','켬'],['off','끔']].map(([k,t])=>`<button data-mode="${k}" aria-pressed="${mode===k}" ${busy?'disabled':''}>${t}</button>`).join('')}</div>
   <button class="gear" data-dev-open="device" aria-label="기기 설정">${GEAR}</button></div>
