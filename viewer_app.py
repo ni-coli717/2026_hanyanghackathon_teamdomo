@@ -303,6 +303,18 @@ def main():
         # 로컬 전용 연결 점검(키는 출력하지 않는다): http://localhost:8501/?diag=db
         from scripts.db_check import run_checks
         st.code('\n'.join(run_checks())); return
+    if st.query_params.get('diag') == 'demo':
+        # 시연 예보 연결 점검(비밀값 없음): Supabase demo_forecast 행과 그 결과
+        import traceback
+        try:
+            service._REMOTE_DEMO.update(at=0.0, value=None)
+            r = service._remote_demo()
+            st.code('remote: ' + repr(r)[:1200])
+            st.code('demo_forecast: ' + repr(service.demo_forecast(now_kst()))[:1500])
+            st.code('mtime: ' + repr(service.demo_forecast_mtime()))
+        except Exception:
+            st.code(traceback.format_exc())
+        return
     state = st.session_state.get('map_state', {})
     handle_auth_command(state)
     account, user, profile, _ = account_state()
