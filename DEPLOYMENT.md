@@ -29,3 +29,11 @@ DATA_MODE=demo는 원본 시나리오만 읽습니다. 주민 제출은 별도 �
 - `run_demo_prep.bat`: 연결 코드 + 시연 가상 예보로 기기 일정. 같은 가상 예보를 `data/private/demo_forecast.csv`(6시간 유효)에 남겨 **앱 지도도 같은 예보**를 보여준다.
 - `run_demo_off.bat`: 시연 끝. 파일을 지우고 실제 예보로 다시 계산. (15분마다 도는 GitHub Actions 도 실제 예보로 덮어쓴다 — 시연은 직전에 준비)
 - 공기청정기 브리지: `run_device_bridge.bat`(Uno USB) / `run_device_sim.bat`(보드 없이). 로그 `data/private/bridge.log`.
+
+## Streamlit Community Cloud 배포 (2026-10-28)
+1. https://share.streamlit.io → Create app → 저장소 `ni-coli717/2026_hanyanghackathon_teamdomo`, branch `main`, main file `viewer_app.py`.
+   Advanced settings: Python 3.11, **App URL `odor-compass`** (→ https://odor-compass.streamlit.app). 다른 이름을 쓰면 아래 redirect_uri 와 카카오·구글 Redirect URI 도 같이 바꾼다.
+2. Settings > Secrets 에 `data/private/cloud_secrets.toml` 내용 통째로 붙여넣기 (APP_ENV=cloud, DATA_MODE=live, redirect_uri 가 배포 주소로 돼 있음).
+3. 카카오 developers > 플랫폼 키 > REST API 키 수정 > 카카오 로그인 리다이렉트 URI 에 `https://odor-compass.streamlit.app/oauth2callback` 추가 (localhost 는 그대로 둠).
+4. 배포 뒤 휴대폰에서 주소 열어 카카오 로그인 → 기록까지 확인. 서버 로그는 Cloud 의 "Manage app" 에서.
+- 공기청정기 브리지(`run_device_bridge.bat`)는 PC 에서 계속 돈다(보드가 USB 로 PC 에 붙어 있으므로). 앱·서버는 Cloud, 기기 연결은 PC.
