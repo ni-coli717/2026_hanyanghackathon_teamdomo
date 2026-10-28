@@ -202,7 +202,8 @@ def _remote_demo():
     """배포본(Streamlit Cloud)은 로컬 파일이 없으므로 Supabase demo_forecast(id=1) 를 본다. 서버 키로만 읽는다."""
     import time
     from .config import nested_setting
-    if time.time() - _REMOTE_DEMO['at'] < 30:
+    ttl = 30 if _REMOTE_DEMO['value'] else 5          # 없을 때는 5초마다 다시 본다(시연 준비 직후 바로 반영)
+    if time.time() - _REMOTE_DEMO['at'] < ttl:
         return _REMOTE_DEMO['value']
     _REMOTE_DEMO['at'] = time.time(); _REMOTE_DEMO['value'] = None
     url, key = nested_setting('database', 'url').rstrip('/'), nested_setting('database', 'key')
