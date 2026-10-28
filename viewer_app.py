@@ -120,7 +120,25 @@ def _profile_set(user, profile):
     st.session_state.profile_cache = (user['key'], profile)
 
 
+def _resume_from_cookie():
+    """브라우저 쿠키의 이메일 refresh 토큰으로 첫 실행에서 바로 로그인 복원(컴포넌트 왕복 없이)."""
+    if st.session_state.get('cookie_resume_tried') or acc.current_user():
+        return
+    st.session_state.cookie_resume_tried = True
+    try:
+        token = st.context.cookies.get('odor_refresh', '')
+    except Exception:  # noqa: BLE001
+        token = ''
+    if not token:
+        return
+    session = acc.email_resume(token)
+    if session:
+        st.session_state.email_user = {k: v for k, v in session.items() if k != 'refresh'}
+        st.session_state.email_refresh = session.get('refresh', '')
+
+
 def account_state():
+    _resume_from_cookie()
     user, store = acc.current_user(), acc.profile_store()
     profile = _profile(store, user)
     pub = acc.public_account(user, profile, store_ok=store is not None)

@@ -8,7 +8,10 @@ const SCHED=['07:30','12:30','18:30','22:00'];
 let acct={status:'anon'},screen='',prev='login',emailMode='login',tut=0,pending=0,cmdSeq=0,tutReplay=false;
 let rec=null,recMarker=null,resumeTried=false;
 const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const stor={get(){try{return JSON.parse(localStorage.getItem(AUTH_KEY)||'null');}catch(e){return null;}},set(v){try{if(v)localStorage.setItem(AUTH_KEY,JSON.stringify(v));else localStorage.removeItem(AUTH_KEY);}catch(e){}}};
+// 이메일 로그인 유지: localStorage + 같은 주소의 쿠키. 쿠키는 서버가 첫 실행에서 바로 읽어(st.context.cookies) '로그인 확인 중' 왕복을 줄인다.
+const stor={get(){try{return JSON.parse(localStorage.getItem(AUTH_KEY)||'null');}catch(e){return null;}},
+ set(v){try{if(v)localStorage.setItem(AUTH_KEY,JSON.stringify(v));else localStorage.removeItem(AUTH_KEY);}catch(e){}
+  try{document.cookie='odor_refresh='+(v?encodeURIComponent(v.refresh):'')+'; path=/; max-age='+(v?2592000:0)+'; SameSite=Lax';}catch(e){}}};
 const hm=iso=>{if(!iso)return '—';const p=parts(iso);return `${p.hour}:${p.minute}`;};
 function cmd(kind,body){
  if(!state)state={sequence:0};
