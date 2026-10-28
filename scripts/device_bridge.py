@@ -6,6 +6,10 @@
   python scripts/device_bridge.py                # 포트 자동 감지, 20초 주기
   python scripts/device_bridge.py --port COM3
   python scripts/device_bridge.py --sim          # 보드 없이 시뮬레이터(ODOR_DEVICE_SIM=1)
+  python scripts/device_bridge.py --no-plan      # 서버 일정이 오래돼도 이 PC 에서 다시 계산하지 않음
+
+GitHub Actions 의 15분 예약 실행은 자주 늦거나 빠진다. 서버 일정이 PLAN_STALE_MIN 보다 오래되면 이 PC 가
+scripts.plan_devices 를 직접 돌려 같은 Supabase 에 써 넣는다(기상청 키는 secrets [kma]).
 
 키·토큰은 .streamlit/secrets.toml [database].url/anon_key, [device].id/token 에서만 읽는다(출력하지 않는다).
 """
@@ -13,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 import time
 import tomllib
@@ -26,6 +31,7 @@ sys.path.insert(0, str(ROOT))
 
 LEVEL_KO = {'HIGH': '높음', 'MID': '보통', 'LOW': '낮음'}
 LOG = ROOT / 'data/private/bridge.log'
+PLAN_STALE_MIN = 20
 
 
 def log(msg):
@@ -59,18 +65,34 @@ class Server:
         return r.json() if r.text else None
 
 
+def plan_stale(info, minutes=PLAN_STALE_MIN):
+    p = info.get('plan') or {}
+    if p.get('basis') == 'demo':      # 시연 일정은 일부러 쓴 것이니 이 PC 가 덮어쓰지 않는다
+        return False
+    try:
+        return time.time() - datetime.fromisoformat(p['computed_at']).timestamp() > minutes * 60
+    except (KeyError, TypeError, ValueError):
+        return True
+
+
 def plan_to_state(info):
     """서버 응답 → 보드에 보낼 (풍향 한글, 단계 한글, ACTION, basis_key)."""
     cmd = info.get('command') or 'HOLD'
     plan = info.get('plan') or {}
     now = time.time()
-    level_ko, wind_ko = None, None
+    level_ko, wind_ko, active = None, None, False
     for ep in plan.get('episodes') or []:
         try:
-            if datetime.fromisoformat(ep['off_at']).timestamp() >= now - 60:
-                level_ko, wind_ko = ep.get('peak_level'), ep.get('wind_sector'); break
+            on, off = datetime.fromisoformat(ep['on_at']).timestamp(), datetime.fromisoformat(ep['off_at']).timestamp()
         except (KeyError, ValueError):
             continue
+        if off >= now - 60 and level_ko is None:
+            level_ko, wind_ko = ep.get('peak_level'), ep.get('wind_sector')
+        if on <= now < off:
+            active = True
+    if info.get('source') == 'plan' and plan.get('state') != 'hold' and plan.get('episodes') is not None:
+        # 저장된 action 은 계산 시각 기준이라 15분 사이에 낡는다. 가동 구간(on_at~off_at)과 지금 시각으로 다시 정한다.
+        cmd = 'ON' if active else 'OFF'
     if level_ko is None and plan.get('state') not in (None, 'hold'):
         level_ko = '낮음'
     basis = 'forecast_csv' if plan.get('basis') == 'demo' else 'kma_forecast'
@@ -80,6 +102,7 @@ def plan_to_state(info):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--port'); ap.add_argument('--sim', action='store_true'); ap.add_argument('--interval', type=int, default=20)
+    ap.add_argument('--no-plan', action='store_true')
     a = ap.parse_args()
     if a.sim: os.environ['ODOR_DEVICE_SIM'] = '1'
     from core.device import AppDeviceLink, SIM_PORT
@@ -90,7 +113,7 @@ def main():
     if not link.connect(port):
         log(f'보드 연결 실패 · {link.last_error} (포트: {link.ports()})'); sys.exit(1)
     log(f'보드 연결 · {link.port} · 기기 {device}')
-    last_poll, last_sent, reported, reported_at, override_synced = 0.0, None, None, 0.0, None
+    last_poll, last_sent, reported, reported_at, override_synced, last_plan = 0.0, None, None, 0.0, None, 0.0
     while True:
         try:
             if link.status == '연결 끊김':
@@ -103,6 +126,14 @@ def main():
                 last_poll = now
                 info = server.rpc('device_get')
                 settings = info.get('settings') or {}
+                if not a.no_plan and plan_stale(info) and time.time() - last_plan > 600:
+                    last_plan = time.time()
+                    log('서버 일정이 오래됨 · 이 PC 에서 다시 계산')
+                    r = subprocess.run([sys.executable, '-m', 'scripts.plan_devices'], cwd=ROOT, capture_output=True, text=True,
+                                       encoding='utf-8', errors='replace', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+                    out = (r.stdout + r.stderr).strip().splitlines()
+                    log(('일정 계산 완료' if r.returncode == 0 else '일정 계산 실패') + (' · ' + out[-1] if out else ''))
+                    info = server.rpc('device_get'); settings = info.get('settings') or {}
                 if link.mode == 'MANUAL':
                     if settings.get('mode') == 'auto' and override_synced is None:
                         # 보드 버튼으로 켜고 끈 것 → 서버도 수동(2시간)으로. 앱에 '수동 가동/정지'가 보인다

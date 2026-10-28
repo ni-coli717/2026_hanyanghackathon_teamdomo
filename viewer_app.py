@@ -318,6 +318,7 @@ def main():
     try:
         payload, predictions = map_payload(data_mode(), model_key())
     except Exception:
+        import logging; logging.getLogger('viewer').exception('map_payload 실패')
         st.error('서버 연결 실패')
         if st.button('다시 시도'): st.rerun()
         return

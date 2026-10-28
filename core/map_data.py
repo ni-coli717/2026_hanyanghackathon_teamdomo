@@ -188,7 +188,7 @@ def prepare_payload(reports, weather, zones, windows, demo, slots=None, predicti
     weather_info = ' · '.join(f'{k} {v}건' for k, v in basis_counts.items()) if not basis_counts.empty else ('제공 파일' if demo else '미연결')
     model_info = model_info or {'ok': False, 'reason': '모델 없음'}
     forecast_info = {'kma': f"기상청 단기예보 · {meta.get('issued', '')}", 'csv': '시연 예보 · 예시 파일',
-                     'none': '없음'}[meta['source']] + (f" · {meta['error']}" if meta.get('error') else '')
+                     'demo': '시연 가상 예보 · 기기 일정과 동일', 'none': '없음'}.get(meta.get('source'), '없음') + (f" · {meta['error']}" if meta.get('error') else '')
     from .config import ZONE_SUBTITLES
     from .geo_check import zone_polygons
     points = {z.zone_id: (float(z.rep_lat), float(z.rep_lon)) for _, z in zones.iterrows()}

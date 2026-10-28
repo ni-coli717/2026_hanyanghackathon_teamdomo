@@ -131,3 +131,38 @@ values ('AP01', 'U01', '5cdccbc8cd6387f86be0fa5d816b84367dab9371f05a20da8e8818a5
 on conflict (device_id) do nothing;
 
 select device_id, zone_id, lead_min, mode from public.devices;
+
+-- =====================================================================
+-- 2026-10-28: device_get 의 command 를 저장된 action 이 아니라 '지금 시각이 가동 구간 안인지' 로 정한다.
+-- 일정은 15분마다만 다시 계산되므로, 그 사이 on_at 이 지나도 action 이 OFF 로 남는 문제를 막는다. SQL Editor 에서 다시 실행.
+-- =====================================================================
+create or replace function public.device_get(p_device text, p_token text) returns jsonb
+language plpgsql security definer set search_path = public, extensions as $$
+declare d devices; p device_plan; eff text; src text; active boolean;
+begin
+  if not _device_ok(p_device, p_token) then raise exception 'unauthorized'; end if;
+  select * into d from devices where device_id = p_device;
+  select * into p from device_plan where device_id = p_device;
+  if d.mode <> 'auto' and d.manual_until is not null and d.manual_until < now() then
+    update devices set mode = 'auto', manual_until = null where device_id = p_device;
+    insert into device_log(device_id, kind, detail) values (p_device, 'settings', '수동 시간 종료 · 자동 복귀');
+    d.mode := 'auto';
+  end if;
+  if d.mode = 'on' then eff := 'ON'; src := 'manual';
+  elsif d.mode = 'off' then eff := 'OFF'; src := 'manual';
+  elsif p.device_id is null or p.state = 'hold' then eff := 'HOLD'; src := 'plan';
+  else
+    select exists(select 1 from jsonb_array_elements(coalesce(p.episodes, '[]'::jsonb)) e
+                  where (e->>'on_at')::timestamptz <= now() and now() < (e->>'off_at')::timestamptz) into active;
+    eff := case when active then 'ON' else 'OFF' end; src := 'plan';
+  end if;
+  return jsonb_build_object(
+    'now', now(), 'command', eff, 'source', src,
+    'settings', jsonb_build_object('name', d.name, 'zone_id', d.zone_id, 'lead_min', d.lead_min, 'tail_min', d.tail_min,
+                                   'trigger_level', d.trigger_level, 'mode', d.mode, 'manual_until', d.manual_until),
+    'plan', case when p.device_id is null then null else jsonb_build_object(
+       'computed_at', p.computed_at, 'basis', p.basis, 'issued', p.issued, 'action', p.action, 'state', p.state,
+       'reason', p.reason, 'next_on_at', p.next_on_at, 'next_odor_at', p.next_odor_at, 'next_off_at', p.next_off_at,
+       'episodes', p.episodes) end,
+    'status', (select to_jsonb(s) - 'device_id' from device_status s where s.device_id = p_device));
+end; $$;
