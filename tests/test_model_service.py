@@ -158,3 +158,25 @@ def test_demo_forecast_override(tmp_path, monkeypatch):
     old = time.time() - 7 * 3600
     import os; os.utime(path, (old, old))
     assert svc.demo_forecast(now_kst()) is None
+
+
+def test_remote_demo_forecast(monkeypatch, tmp_path):
+    """로컬 파일이 없으면 Supabase demo_forecast 행을 쓴다(배포본). 네트워크는 가짜."""
+    import pandas as pd
+    from core import analysis_service as svc
+    from core.config import now_kst
+    monkeypatch.setattr(svc, 'DEMO_FORECAST', tmp_path / 'none.csv')
+    monkeypatch.setenv('DATABASE_URL', 'https://example.supabase.co'); monkeypatch.setenv('DATABASE_KEY', 'sb_secret_test')
+    t0 = pd.Timestamp(now_kst().replace(tzinfo=None)).floor('h')
+    rows = [dict(window_start=str(t0 + pd.Timedelta(hours=k)), wind_from_deg=20.0, wind_speed=2.5, humidity_pct=95.0, temperature_c=15.0, rain_1h_mm=0.0) for k in range(3)]
+
+    class R:
+        ok = True
+        def json(self): return [{'rows': rows, 'created_at': now_kst().isoformat()}]
+    import requests
+    monkeypatch.setattr(requests, 'get', lambda *a, **k: R())
+    svc._REMOTE_DEMO.update(at=0.0, value=None)
+    out = svc.demo_forecast(now_kst())
+    assert out is not None and len(out) == 3 and (out.basis == 'demo').all()
+    assert svc.demo_forecast_mtime() > 0
+    svc._REMOTE_DEMO.update(at=0.0, value=None)

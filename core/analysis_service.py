@@ -195,23 +195,59 @@ def predict_windows(weather_df: pd.DataFrame, model_name: str | None = None) -> 
 
 
 # ------------------------------------------------------------------ forecast
+_REMOTE_DEMO = {'at': 0.0, 'value': None}      # Supabase demo_forecast 행을 30초만 기억(매 rerun 마다 묻지 않게)
+
+
+def _remote_demo():
+    """배포본(Streamlit Cloud)은 로컬 파일이 없으므로 Supabase demo_forecast(id=1) 를 본다. 서버 키로만 읽는다."""
+    import time
+    from .config import nested_setting
+    if time.time() - _REMOTE_DEMO['at'] < 30:
+        return _REMOTE_DEMO['value']
+    _REMOTE_DEMO['at'] = time.time(); _REMOTE_DEMO['value'] = None
+    url, key = nested_setting('database', 'url').rstrip('/'), nested_setting('database', 'key')
+    if not url.startswith('https://') or not key:
+        return None
+    try:
+        import requests
+        r = requests.get(f'{url}/rest/v1/demo_forecast', params={'id': 'eq.1', 'select': 'rows,created_at'}, timeout=8,
+                         headers={'apikey': key, **({'Authorization': f'Bearer {key}'} if key.startswith('eyJ') else {})})
+        row = r.json()[0] if r.ok and r.json() else None
+        if row and row.get('rows'):
+            created = pd.Timestamp(row['created_at']).timestamp()
+            if time.time() - created <= DEMO_FORECAST_HOURS * 3600:
+                _REMOTE_DEMO['value'] = (pd.DataFrame(row['rows']), created)
+    except Exception:  # noqa: BLE001
+        pass
+    return _REMOTE_DEMO['value']
+
+
 def demo_forecast_mtime() -> float:
+    """시연 예보가 바뀌면 값이 바뀐다(캐시 키용). 로컬 파일 → 없으면 Supabase."""
     try:
         return DEMO_FORECAST.stat().st_mtime
     except OSError:
-        return 0.0
+        remote = _remote_demo()
+        return remote[1] if remote else 0.0
 
 
 def demo_forecast(now) -> pd.DataFrame | None:
-    """demo_prep 가 남긴 시연 예보가 있고 6시간이 안 지났으면 그것을 쓴다(지도와 기기 일정이 같은 자료를 보게)."""
+    """demo_prep 가 남긴 시연 예보가 있고 6시간이 안 지났으면 그것을 쓴다(지도와 기기 일정이 같은 자료를 보게).
+    로컬 파일(data/private/demo_forecast.csv) 이 우선, 없으면 Supabase demo_forecast."""
     import time
-    mtime = demo_forecast_mtime()
-    if not mtime or time.time() - mtime > DEMO_FORECAST_HOURS * 3600:
-        return None
+    rows = None
     try:
-        rows = read_forecast_csv(str(DEMO_FORECAST))
+        mtime = DEMO_FORECAST.stat().st_mtime
+        if time.time() - mtime <= DEMO_FORECAST_HOURS * 3600:
+            rows = read_forecast_csv(str(DEMO_FORECAST))
     except Exception:  # noqa: BLE001
-        return None
+        rows = None
+    if rows is None:
+        remote = _remote_demo()
+        if not remote:
+            return None
+        rows = remote[0].copy()
+        rows['window_start'] = pd.to_datetime(rows.window_start)
     rows = rows[rows.window_start >= pd.Timestamp(now.replace(tzinfo=None)).floor('h')]
     if rows.empty:
         return None

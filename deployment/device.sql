@@ -166,3 +166,15 @@ begin
        'episodes', p.episodes) end,
     'status', (select to_jsonb(s) - 'device_id' from device_status s where s.device_id = p_device));
 end; $$;
+
+-- =====================================================================
+-- 2026-10-28: 시연 가상 예보를 배포본(Streamlit Cloud)도 보게 하는 표. run_demo_prep 이 쓰고 run_demo_off 가 지운다. 서버 키만 접근.
+-- =====================================================================
+create table if not exists public.demo_forecast (
+ id int primary key default 1 check (id = 1),
+ rows jsonb not null,
+ created_at timestamptz not null default now()
+);
+alter table public.demo_forecast enable row level security;
+revoke all on public.demo_forecast from anon, authenticated;
+grant all on public.demo_forecast to service_role;

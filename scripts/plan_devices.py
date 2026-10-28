@@ -66,6 +66,11 @@ class Supa:
         r = requests.post(self.base + table, headers={**self.h, "Prefer": "return=minimal"},
                           data=json.dumps(rows, ensure_ascii=False, default=str), timeout=20); r.raise_for_status()
 
+    def delete(self, table, filt):
+        """filt: 'id=eq.1' 처럼 PostgREST 필터 한 개."""
+        k, v = filt.split("=", 1)
+        r = requests.delete(self.base + table, headers=self.h, params={k: v}, timeout=20); r.raise_for_status()
+
 
 def demo_weather(now: pd.Timestamp) -> pd.DataFrame:
     """시연용 가상 예보: 지금+1h 부터 3시간 북북동풍(강 건너 방향)·습한 날씨, 앞뒤는 남서풍·건조. 실측 아님.
@@ -98,9 +103,17 @@ def main():
         # 앱 지도도 같은 가상 예보를 보도록 남긴다(core/analysis_service.demo_forecast, 6시간 유효, 저장소에 안 올라감)
         demo_csv.parent.mkdir(parents=True, exist_ok=True)
         weather.to_csv(demo_csv, index=False, encoding="utf-8")
+        if not a.dry_run:   # 배포본(Cloud)도 같은 가상 예보를 보도록 Supabase 에도 남긴다
+            rows = [{**r, "window_start": pd.Timestamp(r["window_start"]).strftime("%Y-%m-%d %H:%M:%S")} for r in weather.to_dict("records")]
+            Supa(cfg["url"], cfg["key"]).upsert("demo_forecast", [dict(id=1, rows=rows, created_at=dt.datetime.now(KST).isoformat())])
     else:
         if demo_csv.exists():
             demo_csv.unlink()   # 실제 예보로 돌아오면 지도도 실제 예보로
+        if not a.dry_run:
+            try:
+                Supa(cfg["url"], cfg["key"]).delete("demo_forecast", "id=eq.1")
+            except Exception as e:  # noqa: BLE001
+                print(f"demo_forecast 정리 실패(무시) · {e}")
         if not cfg["kma_key"]:
             raise SystemExit("기상청 서비스키가 없습니다(KMA_SERVICE_KEY).")
         try:
