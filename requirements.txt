@@ -1,5 +1,6 @@
 streamlit>=1.42,<2
 Authlib==1.6.5        # st.login (카카오·구글 OIDC). 1.6.6+ 는 "NoneType item assignment" 오류
+httpx>=0.27           # 새 Streamlit(starlette) 의 st.login 이 Authlib starlette 클라이언트로 httpx 를 쓴다
 pandas>=2.1
 numpy>=1.26
 scipy>=1.11

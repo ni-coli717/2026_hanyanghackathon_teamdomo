@@ -81,6 +81,16 @@ def allow_clock_skew(seconds=600):
         return original(self, token, nonce, claims_options=claims_options, claims_cls=claims_cls, leeway=max(leeway, seconds))
 
     sync_openid.OpenIDMixin.parse_id_token = parse_id_token
+    try:   # 새 Streamlit(starlette 서버)은 비동기 클라이언트를 쓴다
+        from authlib.integrations.base_client import async_openid
+        original_async = async_openid.AsyncOpenIDMixin.parse_id_token
+
+        async def parse_id_token_async(self, token, nonce, claims_options=None, claims_cls=None, leeway=120):
+            return await original_async(self, token, nonce, claims_options=claims_options, claims_cls=claims_cls, leeway=max(leeway, seconds))
+
+        async_openid.AsyncOpenIDMixin.parse_id_token = parse_id_token_async
+    except Exception:  # noqa: BLE001
+        pass
     _LEEWAY_PATCHED = True
 
 
