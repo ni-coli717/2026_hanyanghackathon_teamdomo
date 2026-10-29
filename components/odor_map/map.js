@@ -147,7 +147,13 @@ function renderPanel(){
   const rep=window.appArgs.recent?.[z?.id];
   content=rows({'위치':z?.subtitle||'관측 구역 밖','오늘 가능성':todayLevel(z?.id)||'추정 보류','바람':windText(w),
    '주민 관측':forecast?'관측 없음 · 예보':s.status,'감지':s.n?`${s.n}명 중 ${s.detected}명`:'—','최근 제보':rep?`최근 3시간 ${rep.count}건${rep.device?` · 기기 ${rep.device}`:''}`:'없음',
-   '전망':z?data.outlook?.[z.id]||'추정 보류':'—','기준 시각':fmt(f?.at)})+'<div class="menu"><button data-open="criteria">집계 기준</button></div>';
+   '전망':z?data.outlook?.[z.id]||'추정 보류':'—','기준 시각':fmt(f?.at)})+'<div class="menu"><button data-open="zones">구역은 어떻게 나눴나</button><button data-open="criteria">집계 기준</button></div>';
+ }else if(panel==='zones'){
+  title='구역 기준';
+  const list=(data.zones||[]).map(x=>`<li><b style="color:${x.color||'#333'}">${esc(x.name)}</b>${x.subtitle?` <span class="muted">${esc(x.subtitle)}</span>`:''}</li>`).join('');
+  content=`<p>운양동을 생활권과 지형으로 <b>세 구역</b>으로 나눴습니다. 2026년 6~9월 주민 정기 관측(하루 4회)에서 쓴 관측 구역과 같습니다.</p><ul class="zone-list">${list}</ul>`
+   +'<p>구역마다 <b>대표점</b> 하나를 두고, 지도의 면은 <b>가장 가까운 대표점에서 1.5 km 이내</b> 규칙으로 그렸습니다. 기록할 때 위치를 판정하는 규칙과 같아서 <b>면 안 = 그 구역</b>입니다.</p>'
+   +'<p>예보와 감지율은 구역 단위입니다. 건물·골목 단위 예측이 아니며, 대표점은 임시값이라 실측 경계가 정해지면 바뀝니다.</p>';
  }else if(panel==='flow'){
   title='바람과 냄새';
   content=rows({'바람':windText(w),'들어오는 쪽':w&&!w.calm?`${direction(w.from)}쪽 · ${w.from}°`:'방향 보류','나가는 쪽':w&&!w.calm?`${direction(w.to)}쪽 · ${w.to}°`:'방향 보류',

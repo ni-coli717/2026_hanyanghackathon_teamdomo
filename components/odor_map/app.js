@@ -268,7 +268,7 @@ const panels={
    <button id="help-tut"><span>사용법<small>4장</small></span></button>
    <button data-open="devhome"><span>우리 집 기기<small>${paired?'공기청정기 1대':'연결된 기기 없음'}</small></span></button>
    <button data-open="info"><span>자료 정보<small>기상청 · 주민 관측</small></span></button>
-   <button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button>
+   <button data-open="zones">구역 기준</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button>
    <button data-open="account"><span>계정<small>${esc(acct.provider_name||'')} · ${esc(acct.nickname||'')}</small></span></button>
    ${acct.operator?'<button data-open="air">기기 USB 연결 (운영)</button>':''}
    </div><p class="muted" id="model-status">${esc(data?.model?.ok?(data.model.status||''):`추정 보류 · ${data?.model?.reason||''}`)}</p>`};

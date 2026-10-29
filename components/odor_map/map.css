@@ -262,3 +262,5 @@ button:active:not(:disabled){transform:scale(.96)}button{transition:transform .1
 .dev-empty{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:8px 0}.dev-empty svg{width:40px;height:40px}.dev-empty h3{margin:4px 0 0;font-size:17px}.dev-empty p{margin:0;color:var(--ink2)}.dev-empty .primary-btn{margin-top:8px}
 .dev-eps{display:flex;flex-direction:column;margin-top:4px}.dev-ep{display:flex;align-items:center;gap:12px;min-height:34px;font-size:13px}.dev-ep>.muted:first-child{width:38px}.dev-ep>.muted:last-child{margin-left:auto}
 #device-card{animation:fadeUp .35s .05s var(--ease) both}
+
+.zone-list{margin:6px 0 10px;padding-left:18px}.zone-list li{margin:3px 0}
