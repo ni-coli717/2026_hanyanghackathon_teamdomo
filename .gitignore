@@ -25,3 +25,4 @@ install_authlib.bat
 restart_viewer.bat
 restart_device_sim.bat
 edit_cloud_secrets.bat
+ext/esp32/odor_purifier/config.h
