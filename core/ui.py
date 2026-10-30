@@ -41,7 +41,7 @@ def logo_wordmark() -> str:
     svg = Path("assets/logo.svg").read_text(encoding="utf-8")
     import base64
     encoded = base64.b64encode(svg.encode()).decode()
-    return f'<div class="wordmark"><img src="data:image/svg+xml;base64,{encoded}"/><div><strong>냄새 나침반</strong><small>주민참여형 악취 진단 · 예보</small></div></div>'
+    return f'<div class="wordmark"><img src="data:image/svg+xml;base64,{encoded}"/><div><strong>코넥트</strong><small>주민참여형 악취 진단 · 예보</small></div></div>'
 
 
 def card(label: str, value: str, note: str = "", css_class: str = "") -> str:

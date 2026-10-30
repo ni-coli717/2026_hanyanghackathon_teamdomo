@@ -1,5 +1,5 @@
 'use strict';
-// 냄새 나침반 첫 화면. Native Streamlit component protocol. 추정값은 전부 Python(analysis_service)에서 오고 여기서는 보여주기만 한다.
+// 코넥트 첫 화면. Native Streamlit component protocol. 추정값은 전부 Python(analysis_service)에서 오고 여기서는 보여주기만 한다.
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let data, state=null, map, tiles, zoneLayer, labelLayer, pin, accuracy, selection, timer=null, picking=false, rendered=false, tileFailures=0, locationRequest=0, arrowAngle=null;
@@ -7,7 +7,7 @@ const zonePolys={};   // 구역 면은 한 번 만들고 색만 바꾼다(색 �
 const emptyStat={n:0,detected:0,status:'자료 없음',type:'unknown',odor_evidence:false,median:null,pred:null,arrow:'none'};
 const LEVELS=['낮음','보통','높음'];
 const LEVEL_CLASS={'낮음':'low','보통':'mid','높음':'high'};
-const COLORS={low:'#2E8B57',mid:'#E0A100',high:'#D64533',hold:'#9AA5AE'};
+const COLORS={low:'#1F7A4B',mid:'#8A5F00',high:'#BC3328',hold:'#5E6C74'};
 const TABS={now:'지금',forecast:'예보',part:'참여',help:'안내'};
 const desktop=()=>window.matchMedia('(min-width:900px)').matches;   // 데스크톱: 왼쪽 패널, 시트 접힘 없음
 const post=(type,extra={})=>window.parent.postMessage({isStreamlitMessage:true,type,...extra},'*');
@@ -115,7 +115,7 @@ function render(){
  $('ahead-title').textContent=!hours.length?'앞으로':span<=8?`앞으로 ${span}시간`:`예보 · ${fmt(hours[0].at)}부터`;
  const peak=maxLevel(hours.map(h=>h.level));const first=hours.find(h=>h.level===peak);
  $('peak').textContent=peak&&first?(peak==='낮음'?'계속 낮음':`${hourWord(first.at)} ${peak}`):'';$('peak').className='peak '+(LEVEL_CLASS[peak]||'');
- $('foot').textContent=`냄새 나침반 v1 · ${latest?shortTime(latest.at):'—'} 갱신`;
+ $('foot').textContent=`코넥트 Ko-nect · ${latest?shortTime(latest.at):'—'} 갱신`;
  // 탭·시트
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
  $('sheet').classList.toggle('collapsed',!desktop()&&!!state.collapsed&&state.tab==='now'&&!state.panel);
@@ -150,7 +150,7 @@ function renderPanel(){
    '전망':z?data.outlook?.[z.id]||'추정 보류':'—','기준 시각':fmt(f?.at)})+'<div class="menu"><button data-open="zones">구역은 어떻게 나눴나</button><button data-open="criteria">집계 기준</button></div>';
  }else if(panel==='zones'){
   title='구역 기준';
-  const list=(data.zones||[]).map(x=>`<li><b style="color:${x.color||'#333'}">${esc(x.name)}</b>${x.subtitle?` <span class="muted">${esc(x.subtitle)}</span>`:''}</li>`).join('');
+  const list=(data.zones||[]).map(x=>`<li><b style="color:${x.color||'#12222B'}">${esc(x.name)}</b>${x.subtitle?` <span class="muted">${esc(x.subtitle)}</span>`:''}</li>`).join('');
   content=`<p>운양동을 생활권과 지형으로 <b>세 구역</b>으로 나눴습니다. 2026년 6~9월 주민 정기 관측(하루 4회)에서 쓴 관측 구역과 같습니다.</p><ul class="zone-list">${list}</ul>`
    +'<p>구역마다 <b>대표점</b> 하나를 두고, 지도의 면은 <b>가장 가까운 대표점에서 1.5 km 이내</b> 규칙으로 그렸습니다. 기록할 때 위치를 판정하는 규칙과 같아서 <b>면 안 = 그 구역</b>입니다.</p>'
    +'<p>예보와 감지율은 구역 단위입니다. 건물·골목 단위 예측이 아니며, 대표점은 임시값이라 실측 경계가 정해지면 바뀝니다.</p>';
@@ -233,7 +233,7 @@ function initialize(args){
  tiles.on('tileerror',()=>{tileFailures++;if(tileFailures>=2)$('tile-error').hidden=false;});
  tiles.on('tileload',()=>{if(tileFailures===0)$('tile-error').hidden=true;});
  zoneLayer=L.layerGroup().addTo(map);labelLayer=L.layerGroup().addTo(map);
- accuracy=L.circle(state.position,{radius:0,color:'#2D7FF9',weight:0,fillColor:'#2D7FF9',fillOpacity:0,interactive:false}).addTo(map);
+ accuracy=L.circle(state.position,{radius:0,color:'#0A6A85',weight:0,fillColor:'#0A6A85',fillOpacity:0,interactive:false}).addTo(map);
  pin=L.marker(state.position,{icon:L.divIcon({className:'sel-dot',iconSize:[12,12],iconAnchor:[6,6]}),title:'기준 위치',zIndexOffset:1000,keyboard:false}).addTo(map).on('click',()=>openPanel('zone'));
  map.on('click',e=>{if(window.odorDevice?.pickingHome){window.odorDevice.homePicked(e.latlng);return;}if(picking)choose([e.latlng.lat,e.latlng.lng]);});
  window.map=map;

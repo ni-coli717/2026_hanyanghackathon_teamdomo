@@ -1,5 +1,5 @@
 'use strict';
-// 냄새 나침반 · 우리 집 공기청정기 카드/설정/연결.
+// 코넥트 · 우리 집 공기청정기 카드/설정/연결.
 // 서버(Supabase) 함수만 부른다: device_get / device_set / device_pair / device_unpair.
 // 브라우저에 저장하는 것: 기기 번호, 이 브라우저 전용 토큰, 집 이름·좌표(서버에는 구역만 보낸다).
 (function(){
@@ -78,7 +78,7 @@ function drawHome(){
  if(!window.map||!window.L)return;
  const h=cfg?.home;
  if(!h){if(homeMarker){homeMarker.remove();homeMarker=null;}return;}
- const icon=L.divIcon({className:'home-pin',html:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="#222" stroke="#fff" stroke-width="1.5"/></svg>',iconSize:[24,24],iconAnchor:[12,20]});
+ const icon=L.divIcon({className:'home-pin',html:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" fill="#12222B" stroke="#fff" stroke-width="1.5"/></svg>',iconSize:[24,24],iconAnchor:[12,20]});
  if(!homeMarker)homeMarker=L.marker([h.lat,h.lon],{icon,interactive:false,keyboard:false,zIndexOffset:900}).addTo(map);
  else homeMarker.setLatLng([h.lat,h.lon]);
 }

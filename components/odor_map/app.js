@@ -1,5 +1,5 @@
 'use strict';
-// 냄새 나침반 v3 · 계정 화면(로그인·가입·사용법), ＋기록 흐름, 참여·계정·안내 탭, 우리 집 기기 시트.
+// 코넥트 v3 · 계정 화면(로그인·가입·사용법), ＋기록 흐름, 참여·계정·안내 탭, 우리 집 기기 시트.
 // 서버와의 약속: 브라우저는 명령(auth_cmd / record_cmd)만 보내고, 판정·저장은 전부 Python 이 한다.
 (function(){
 const AUTH_KEY='odor.auth.v1';              // {refresh}: 이메일 로그인 유지용. 토큰 하나뿐, 키·비밀번호는 저장 안 함
@@ -88,16 +88,16 @@ function bindAuth(){
 }
 function setEmailMode(m){emailMode=m;document.querySelectorAll('.tabs2 [role=tab]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.mode===m)));document.querySelector('.tabs2 .thumb').style.transform=m==='login'?'translateX(0)':'translateX(100%)';$('email-go').textContent=m==='login'?'로그인':'다음';$('em-pw').autocomplete=m==='login'?'current-password':'new-password';}
 const DOCS={
- terms:['이용약관','<p>냄새 나침반은 김포 운양동 주민이 냄새를 기록하고 예보를 보는 참여형 서비스입니다.</p><p>기록은 연구·예보 개선과 지역 공유 자료로 쓰이며, 개인을 알 수 있는 형태로 공개하지 않습니다.</p><p>허위 기록·반복 기록은 집계에서 제외될 수 있습니다. 서비스는 예고 없이 바뀌거나 중단될 수 있습니다.</p>'],
+ terms:['이용약관','<p>코넥트는 김포 운양동 주민이 냄새를 기록하고 예보를 보는 참여형 서비스입니다.</p><p>기록은 연구·예보 개선과 지역 공유 자료로 쓰이며, 개인을 알 수 있는 형태로 공개하지 않습니다.</p><p>허위 기록·반복 기록은 집계에서 제외될 수 있습니다. 서비스는 예고 없이 바뀌거나 중단될 수 있습니다.</p>'],
  privacy:['개인정보 처리방침','<p><b>수집 항목</b> 로그인 계정 식별자, 이메일(가린 형태로 표시), 닉네임, 기록할 때의 위치(약 100 m 단위로 반올림), 기록 내용.</p><p><b>이용 목적</b> 기록 저장과 본인 확인, 구역 판정, 예보 계산.</p><p><b>보관</b> 계정 삭제를 요청하면 계정 정보는 지우고 기록은 익명으로 남습니다.</p><p><b>제3자</b> 우리 집 검색은 OpenStreetMap 에 검색어만 보냅니다. 그 밖에 외부로 보내지 않습니다.</p>'],
 };
 function openDoc(k){const d=DOCS[k];if(!d)return;$('doc-title').textContent=d[0];$('doc-body').innerHTML=d[1];showScreen('doc');}
 // ------------------------------------------------------------------ 사용법 4장
 const TUT=[
- {h:'색 = 냄새 날 가능성',s:'구역 3곳 · 앞으로 6시간',art:`<svg viewBox="0 0 350 400" aria-hidden="true"><path d="M0 30 C80 50 200 14 350 44 L350 0 L0 0 Z" fill="#CFE0EC"/>
-  <path class="a-fade d1" d="M50 170 C30 90 110 50 180 54 C260 58 300 120 270 165 C225 190 110 198 50 170 Z" fill="rgba(214,69,51,0.28)" stroke="#D64533" stroke-width="1.5"/>
-  <path class="a-fade d3" d="M50 170 C110 198 225 190 270 165 C280 215 270 245 245 255 C180 265 100 260 62 248 C48 220 46 195 50 170 Z" fill="rgba(224,161,0,0.28)" stroke="#E0A100" stroke-width="1.5"/>
-  <path class="a-fade d5" d="M62 248 C100 260 180 265 245 255 C270 300 255 360 190 378 C125 388 70 360 62 318 C58 290 58 268 62 248 Z" fill="rgba(46,139,87,0.28)" stroke="#2E8B57" stroke-width="1.5"/></svg>
+ {h:'색 = 냄새 날 가능성',s:'구역 3곳 · 앞으로 6시간',art:`<svg viewBox="0 0 350 400" aria-hidden="true"><path d="M0 30 C80 50 200 14 350 44 L350 0 L0 0 Z" fill="#DDEFF4"/>
+  <path class="a-fade d1" d="M50 170 C30 90 110 50 180 54 C260 58 300 120 270 165 C225 190 110 198 50 170 Z" fill="rgba(188,51,40,0.28)" stroke="#BC3328" stroke-width="1.5"/>
+  <path class="a-fade d3" d="M50 170 C110 198 225 190 270 165 C280 215 270 245 245 255 C180 265 100 260 62 248 C48 220 46 195 50 170 Z" fill="rgba(138,95,0,0.28)" stroke="#8A5F00" stroke-width="1.5"/>
+  <path class="a-fade d5" d="M62 248 C100 260 180 265 245 255 C270 300 255 360 190 378 C125 388 70 360 62 318 C58 290 58 268 62 248 Z" fill="rgba(31,122,75,0.28)" stroke="#1F7A4B" stroke-width="1.5"/></svg>
   <div class="tut-card a-up d7"><div class="tut-legend"><span class="lv-low">■ 낮음</span><span class="lv-mid">■ 보통</span><span class="lv-high">■ 높음</span></div>
   <div class="tut-bars">${[['low',10,8],['high',30,9],['high',30,10],['mid',20,11],['low',10,12],['low',10,13]].map(([c,h,d])=>`<i class="${c} a-grow d${d}" style="height:${h}px"></i>`).join('')}</div></div>`},
  {h:'두 번 누르면 기록 끝',s:'안 나요는 한 번에 저장',art:`<div class="tut-form">
@@ -109,10 +109,10 @@ const TUT=[
   <div class="two"><div class="tcard a-up d1"><span>아침</span><b>07:30</b></div><div class="tcard dark a-up d2 ring"><span>점심</span><b>12:30</b></div><div class="tcard a-up d3"><span>저녁</span><b>18:30</b></div><div class="tcard a-up d4"><span>밤</span><b>22:00</b></div></div>
   <div class="trow a-up d5"><span>앞뒤 15분</span><b>정기 관측</b></div>
   <div class="trow a-up d6"><span>안 나요도 기록</span><b class="lv-low">예보 정확도 ↑</b></div></div>`},
- {h:'위치와 우리 집',s:'기록 위치 확인 · 우리 집 구역 예보',art:`<svg viewBox="0 0 350 400" aria-hidden="true"><path d="M0 30 C80 50 200 14 350 44 L350 0 L0 0 Z" fill="#CFE0EC"/>
-  <path d="M50 170 C30 90 110 50 180 54 C260 58 300 120 270 165 C225 190 110 198 50 170 Z" fill="rgba(45,127,249,0.05)" stroke="#9AA5AE"/>
-  <path class="a-fade d9" d="M50 170 C110 198 225 190 270 165 C280 215 270 245 245 255 C180 265 100 260 62 248 C48 220 46 195 50 170 Z" fill="rgba(45,127,249,0.16)" stroke="#2D7FF9" stroke-width="2"/>
-  <path d="M62 248 C100 260 180 265 245 255 C270 300 255 360 190 378 C125 388 70 360 62 318 C58 290 58 268 62 248 Z" fill="rgba(45,127,249,0.05)" stroke="#9AA5AE"/></svg>
+ {h:'위치와 우리 집',s:'기록 위치 확인 · 우리 집 구역 예보',art:`<svg viewBox="0 0 350 400" aria-hidden="true"><path d="M0 30 C80 50 200 14 350 44 L350 0 L0 0 Z" fill="#DDEFF4"/>
+  <path d="M50 170 C30 90 110 50 180 54 C260 58 300 120 270 165 C225 190 110 198 50 170 Z" fill="rgba(10,106,133,0.05)" stroke="#5E6C74"/>
+  <path class="a-fade d9" d="M50 170 C110 198 225 190 270 165 C280 215 270 245 245 255 C180 265 100 260 62 248 C48 220 46 195 50 170 Z" fill="rgba(10,106,133,0.16)" stroke="#0A6A85" stroke-width="2"/>
+  <path d="M62 248 C100 260 180 265 245 255 C270 300 255 360 190 378 C125 388 70 360 62 318 C58 290 58 268 62 248 Z" fill="rgba(10,106,133,0.05)" stroke="#5E6C74"/></svg>
   <span class="tut-dot pulse"></span><span class="tut-dot a-pop d2"></span>
   <div class="tut-search"><div class="a-up d3">반도유보라</div><div class="res a-up d5"><b>운양동 반도유보라 6차</b><span>구역 운양역</span></div></div>
   <div class="tut-home a-pop d11"><span>우리 집 구역</span><b>운양역</b></div>`},
@@ -196,7 +196,7 @@ function renderRecord(){
  }else if(s==='done'){
   const r=rec.result;const what=r.odor===true?`나요 · 강도 ${r.intensity}`:r.odor===false?'안 나요':'모르겠어요';
   const n=nextScheduled();
-  b.innerHTML=`<div class="rec-done"><svg class="check" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#2E8B57"/><path d="M10 17.5l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="40"/></svg><h2>기록 완료</h2><span class="muted">#${esc((r.id||'').slice(0,4))}</span></div>
+  b.innerHTML=`<div class="rec-done"><svg class="check" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#1F7A4B"/><path d="M10 17.5l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="40"/></svg><h2>기록 완료</h2><span class="muted">#${esc((r.id||'').slice(0,4))}</span></div>
    <dl class="rec-dl a-up d3"><dt>내용</dt><dd>${esc(what)} · ${r.context==='outdoor'?'실외':'실내'}</dd><dt>위치</dt><dd>${esc(r.zone_name||'관측 구역 밖')} · ${r.check==='verified'?`확인됨 ±${rec.loc?.acc??'—'} m`:'미확인 · 집계 제외'}</dd><dt>구분</dt><dd>${r.mode==='scheduled'?'정기 관측':'수시 제보'}${r.odor===true&&r.check==='verified'?' · 지도에 표시':''}</dd></dl>
    <div class="two a-up d4"><button class="dark" data-rec="close">지도로</button><button data-rec="mine">내 기록</button></div>
    <span class="muted center a-up d5">다음 정기 관측 ${esc(n.label)} · 다음 기록 1분 뒤 가능</span>`;
@@ -275,7 +275,7 @@ const panels={
  },
  devhome(){
   const dev=window.odorDevice;
-  if(!dev?.paired)return {title:'우리 집 기기',content:`<div class="dev-empty a-up d1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="#555" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="#555"/></svg><h3>연결된 기기 없음</h3><p>공기청정기를 연결하면 우리 집 구역에 냄새가 예보될 때 미리 가동합니다.</p><button class="primary-btn" data-open="pair">연결하기</button></div>`};
+  if(!dev?.paired)return {title:'우리 집 기기',content:`<div class="dev-empty a-up d1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="#52636C" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="#52636C"/></svg><h3>연결된 기기 없음</h3><p>공기청정기를 연결하면 우리 집 구역에 냄새가 예보될 때 미리 가동합니다.</p><button class="primary-btn" data-open="pair">연결하기</button></div>`};
   const home=dev.homeZoneName?.();
   const eps=dev.info?.plan?.episodes||[];const now=Date.now();
   const rows=eps.slice(0,3).map(e=>`<div class="dev-ep"><span class="muted">${hm(e.on_at)}</span><b>${Date.parse(e.off_at)<now?'가동 끝':Date.parse(e.on_at)<=now?'가동 중':'가동 예정'}</b><span class="muted">${hm(e.odor_start)} ${esc(e.peak_level||'')} 예보 · ${hm(e.off_at)}까지</span></div>`).join('')||'<p class="muted">앞으로 가동 일정 없음</p>';

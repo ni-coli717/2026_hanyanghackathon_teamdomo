@@ -23,7 +23,7 @@ from ext.arduino import ArduinoDevice, available_ports
 from ext.device_sim import SimulatedDevice, device_command
 
 
-st.set_page_config(page_title="냄새 나침반", page_icon="assets/logo.svg", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="코넥트 운영", page_icon="assets/logo.svg", layout="wide", initial_sidebar_state="collapsed")
 from core.auth import require_admin
 require_admin()
 st.markdown(CSS, unsafe_allow_html=True)
@@ -622,4 +622,4 @@ elif page == "⑧ 수집 품질": render_quality()
 else: render_settings(repo, sample_mode)
 
 st.divider()
-st.caption("냄새 나침반 · 유입 방향 추정은 원인 시설 판정이 아닙니다 · 관측 부족은 감지 없음이 아닙니다")
+st.caption("코넥트 · 유입 방향 추정은 원인 시설 판정이 아닙니다 · 관측 부족은 감지 없음이 아닙니다")

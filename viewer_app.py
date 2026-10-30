@@ -290,7 +290,7 @@ def watch_device(link):
 
 
 def main():
-    st.set_page_config(page_title='냄새 나침반',page_icon='assets/logo.svg',layout='wide',initial_sidebar_state='collapsed')
+    st.set_page_config(page_title='코넥트',page_icon='assets/logo.svg',layout='wide',initial_sidebar_state='collapsed')
     st.markdown('''<style>
     [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, footer{display:none!important}
     .stMainBlockContainer,.block-container{padding:0!important;max-width:none!important}
@@ -318,6 +318,11 @@ def main():
     state = st.session_state.get('map_state', {})
     handle_auth_command(state)
     account, user, profile, _ = account_state()
+    if account['status'] != 'ok' and st.query_params.get('preview') == '1' and setting('APP_ENV', 'cloud') == 'local':
+        # 로컬 전용 화면 미리보기(로그인 없이 지도 화면 확인): http://localhost:8501/?preview=1 · 기록은 저장하지 않는 코드
+        account = {'status': 'ok', 'provider': 'preview', 'provider_name': '미리보기', 'nickname': '미리보기', 'code': 'PREVIEW',
+                   'email': '', 'joined': '', 'notify': False, 'operator': False, 'providers': account.get('providers', {})}
+        profile = {'participant_code': 'PREVIEW'}
     if account['status'] != 'ok':
         # 로그인·가입·사용법 전에는 지도 자료를 보내지 않는다.
         result = odor_map(payload=None, selection=None, initial_state=state, account=account, key='resident_map', default=None)
@@ -326,7 +331,8 @@ def main():
             st.rerun()
         return
     code = profile['participant_code']
-    handle_record_command(state, code)
+    if code != 'PREVIEW':
+        handle_record_command(state, code)
     try:
         payload, predictions = map_payload(data_mode(), model_key())
     except Exception:
