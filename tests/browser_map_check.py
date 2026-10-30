@@ -70,7 +70,7 @@ def check():
                 frame.locator('#head').click()
                 assert actual.evaluate('odorMap.state.collapsed') is False
             expect(frame.locator('#bars')).to_be_visible()
-            expect(frame.locator('#foot')).to_contain_text('냄새 나침반 v1')
+            expect(frame.locator('#foot')).to_contain_text('코넥트 Ko-nect')
             expect(frame.locator('#foot')).to_contain_text('갱신')
             assert '학습' not in frame.locator('#foot').inner_text()
             page.screenshot(path=f'artifacts/expanded-{width}.png', full_page=True)
@@ -82,7 +82,7 @@ def check():
             assert actual.evaluate('((odorMap.arrowAngle%360)+360)%360') == 247.5
             expect(frame.locator('#wind-name')).to_have_text('동풍')
             fills = actual.evaluate('[...document.querySelectorAll("path.leaflet-interactive")].map(p=>p.getAttribute("fill"))')
-            assert set(fills) <= {'#2E8B57', '#E0A100', '#D64533', '#9AA5AE'}, fills
+            assert set(fills) <= {'#1F7A4B', '#8A5F00', '#BC3328', '#5E6C74'}, fills
             page.screenshot(path=f'artifacts/history-{width}.png', full_page=True)
 
             # 09-11 22:00: calm -> button dimmed, text says 방향 보류.
