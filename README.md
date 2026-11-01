@@ -177,7 +177,7 @@ CLI: `python -m odor_model.predict forecast --csv odor_model/sample_forecast.csv
 
 `measurement_app.py`는 참여자 코드 + PIN으로 로그인하고, 제출 전에 휴대폰 위치(GPS)를 받아 서버(`core/geo_check.py`)가 구역을 정한다. 주민은 구역을 고르지 않는다.
 
-- 통과(`verified`): 위치 정확도 150 m 이내이고 가장 가까운 구역 대표점에서 1.5 km 이내. 그 구역으로 저장.
+- 통과(`verified`): 위치 정확도 300 m 이내이고 가장 가까운 구역 대표점에서 1.5 km 이내. 그 구역으로 저장.
 - 탈락(`rejected`): 구역 밖이거나 정확도 불량. 저장은 되지만 집계(`get_window_aggregates`)에서 제외되고 화면에 "위치 미확인"으로 표시된다. 탈락 건수는 그대로 남아 보고할 수 있다.
 - 좌표는 소수 3자리(약 100 m)로 반올림해 저장한다. 정밀 위치는 남기지 않는다.
 - PIN: `python -m core.auth participant` 로 해시를 만들어 secrets `[participants]`에 넣는다. Supabase에는 `deployment/supabase.sql` 끝의 위치 열 추가 구문을 실행한다.

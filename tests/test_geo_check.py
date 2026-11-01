@@ -26,6 +26,12 @@ def test_poor_accuracy_is_rejected():
     assert r['status'] == 'rejected' and '정확도' in r['reason']
 
 
+def test_rough_phone_fix_within_300m_passes():
+    # 한강변 실측: 휴대폰 첫 위치 ±172 m (2026-11-01). 기준 300 m 안이라 통과.
+    assert check_location(37.662, 126.684, accuracy_m=172)['status'] == 'verified'
+    assert check_location(37.662, 126.684, accuracy_m=301)['status'] == 'rejected'
+
+
 def test_missing_or_bad_coords():
     assert check_location(None, None)['reason'] == '위치 없음'
     assert check_location(95, 0)['reason'] == '좌표 범위 밖'

@@ -3,7 +3,7 @@
 // 서버와의 약속: 브라우저는 명령(auth_cmd / record_cmd)만 보내고, 판정·저장은 전부 Python 이 한다.
 (function(){
 const AUTH_KEY='odor.auth.v1';              // {refresh}: 이메일 로그인 유지용. 토큰 하나뿐, 키·비밀번호는 저장 안 함
-const MAX_ACC=150,MAX_DIST_KM=1.5;          // core/geo_check 와 같은 값(표시용). 판정은 서버가 다시 한다
+const MAX_ACC=300,MAX_DIST_KM=1.5;          // core/geo_check 와 같은 값(표시용). 판정은 서버가 다시 한다
 const SCHED=['07:30','12:30','18:30','22:00'];
 const INTENT_KEY='odor.intent.v1';           // 로그인 전에 누른 기능(sessionStorage). OAuth 로 다녀와도 이어서 연다
 const COACH_KEY='odor.coach.v1';             // 사용법을 봤거나 닫았음(localStorage)

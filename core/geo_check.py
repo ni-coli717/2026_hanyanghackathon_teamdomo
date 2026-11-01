@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 
-MAX_ACCURACY_M = 150.0
+MAX_ACCURACY_M = 300.0
 MAX_DISTANCE_M = 1500.0
 COORD_DECIMALS = 3
 

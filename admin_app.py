@@ -551,7 +551,7 @@ def render_quality():
     st.markdown("#### 시간대별 (위치 확인 건)")
     hours = v["at"].dt.hour.value_counts().reindex(range(24), fill_value=0).rename_axis("시").to_frame("건수")
     st.bar_chart(hours)
-    st.caption("위치 미확인 = 정확도 150 m 초과 또는 구역 대표점 1.5 km 밖 (core/geo_check). 이동 불가·연타로 막힌 제출은 저장되지 않아 여기에 없다.")
+    st.caption("위치 미확인 = 정확도 300 m 초과 또는 구역 대표점 1.5 km 밖 (core/geo_check). 이동 불가·연타로 막힌 제출은 저장되지 않아 여기에 없다.")
 
 
 def render_settings(repo, sample_mode):
