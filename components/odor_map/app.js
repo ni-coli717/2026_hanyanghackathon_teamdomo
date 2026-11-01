@@ -210,25 +210,32 @@ function openRecord(){
 }
 function closeRecord(now){
  if(!rec)return;
+ stopWatch();clearTimeout(rec.timer);
  const r=rec,done=()=>{if(rec!==r)return;$('rec').hidden=true;$('rec-dim').hidden=true;rec=null;};
  if(now||reduced()){done();return;}
  $('rec').classList.add('out');setTimeout(done,320);
 }
+// 위치: 첫 값은 보통 와이파이·기지국 추정이라 거칠다. 최대 12초 동안 계속 받아 가장 정확한 값을 쓰고, 기준 안이면 바로 통과.
+let watchId=null;
+function stopWatch(){if(watchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;}
 function locate(){
- rec.step='locate';renderRecord();
- if(!navigator.geolocation){rec.loc={status:'none',reason:'이 기기에서 위치를 쓸 수 없음'};rec.step='unverified';renderRecord();return;}
- navigator.geolocation.getCurrentPosition(p=>{
-  if(!rec||rec.step!=='locate')return;
-  const lat=p.coords.latitude,lon=p.coords.longitude,acc=Math.round(p.coords.accuracy||0);
-  let best=null,dist=Infinity;(data?.zones||[]).forEach(z=>{const d=km([lat,lon],[z.lat,z.lon]);if(d<dist){dist=d;best=z;}});
-  const ok=acc<=MAX_ACC&&dist<=MAX_DIST_KM;
-  rec.loc={status:ok?'verified':'rejected',lat,lon,acc,zone:best,dist};
-  if(ok){rec.step='ask';if(map)map.panTo([lat,lon]);}else rec.step='unverified';
-  renderRecord();
- },()=>{if(!rec||rec.step!=='locate')return;rec.loc={status:'none',reason:'위치 권한 또는 연결 확인'};rec.step='unverified';renderRecord();},{timeout:12000,maximumAge:30000,enableHighAccuracy:true});
+ stopWatch();rec.step='locate';rec.loc=null;rec.best=null;renderRecord();
+ if(!navigator.geolocation){rec.loc={status:'none',reason:'이 기기에서 위치 사용 불가'};rec.step='unverified';renderRecord();return;}
+ const mine=rec;
+ const judge=c=>{let best=null,dist=Infinity;(data?.zones||[]).forEach(z=>{const d=km([c.lat,c.lon],[z.lat,z.lon]);if(d<dist){dist=d;best=z;}});return {...c,zone:best,dist,status:c.acc<=MAX_ACC&&dist<=MAX_DIST_KM?'verified':'rejected'};};
+ const finish=l=>{if(rec!==mine||rec.step!=='locate')return;stopWatch();clearTimeout(rec.timer);rec.loc=l;
+  if(l.status==='verified'){rec.step='ask';if(map)map.panTo([l.lat,l.lon]);}else rec.step='unverified';renderRecord();};
+ rec.timer=setTimeout(()=>finish(rec.best?judge(rec.best):{status:'none',reason:'위치 권한 또는 연결 확인'}),12000);
+ watchId=navigator.geolocation.watchPosition(p=>{
+  if(rec!==mine||rec.step!=='locate')return;
+  const c={lat:p.coords.latitude,lon:p.coords.longitude,acc:Math.round(p.coords.accuracy||0)};
+  if(!rec.best||c.acc<rec.best.acc)rec.best=c;
+  const j=judge(rec.best);
+  if(j.status==='verified')finish(j);else renderRecord();
+ },()=>finish(rec.best?judge(rec.best):{status:'none',reason:'위치 권한 또는 연결 확인'}),{timeout:12000,maximumAge:0,enableHighAccuracy:true});
 }
 function chipText(){
- const l=rec.loc;if(!l)return '<span class="dot pulse"></span>위치 확인 중';
+ const l=rec.loc;if(!l)return `<span class="dot pulse"></span>위치 확인 중${rec.best?` · ±${rec.best.acc} m`:''}`;
  if(l.status==='verified')return `<span class="dot"></span>${esc(l.zone.name)} · 위치 확인 ±${l.acc} m`;
  return '<span class="dot warn"></span>위치 미확인 · 집계 제외';
 }
