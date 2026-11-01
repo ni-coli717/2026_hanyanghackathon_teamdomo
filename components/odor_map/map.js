@@ -65,7 +65,7 @@ function message(text){$('notice').textContent=text;$('notice').hidden=false;}
 function hideMessage(){$('notice').hidden=true;}
 function choose(position,kind='selected'){
  locationRequest++;
- if(!inside(position)){message('김포 밖입니다 · 운양동에서 위치 선택');return false;}
+ if(!inside(position)){message('김포 밖 · 운양동에서 위치 선택');return false;}
  state.position=position;state.position_kind=kind;picking=false;$('pick').classList.remove('active');hideMessage();render();send();return true;
 }
 // ------------------------------------------------------------------ 지도
@@ -118,7 +118,7 @@ function render(){
  const cls=LEVEL_CLASS[level]||'hold';
  $('level-word').textContent=level||(z?'보류':'—');$('level-word').className=cls;
  $('head-label').textContent=(atLatest?'오늘 냄새 날 가능성':`${fmt(f?.at)} ${forecast?'예보':'기록'}`)+(z?` · ${z.name}`:' · 관측 구역 밖');
- $('head-sub').textContent=z?windText(w):'구역을 누르거나 내 위치를 켜 주세요';
+ $('head-sub').textContent=z?windText(w):'구역 선택 또는 내 위치 켜기';
  $('head').setAttribute('aria-expanded',String(!state.collapsed));
  // 앞으로 6시간
  const hours=sixHours(z?.id);
@@ -214,7 +214,7 @@ function renderPanel(){
     <div class="slots">${chips}</div><div class="row"><span class="muted">주민 정기 관측 · ${esc(cur?fmt(cur.at):'자료 없음')}${w?` · ${esc(windText(w))}`:''}</span><span class="mode" id="time-mode">${index===li?'최신':'지난 기록'}</span></div></div>`;
    pastDays=days;
   }
-  content+=`<div class="zones">${zoneButtons(f,z)}</div><p class="muted">구역을 누르면 지도와 ‘지금’ 탭이 그 구역 기준이 됩니다.</p>`;
+  content+=`<div class="zones">${zoneButtons(f,z)}</div>`;
  }
  $('panel-title').textContent=title;$('panel-aside').innerHTML=aside;$('panel-content').innerHTML=content;
  if(dev)window.odorDevice.bind(panel);
@@ -270,7 +270,7 @@ function initialize(args){
  map.on('click',e=>{if(window.odorDevice?.pickingHome){window.odorDevice.homePicked(e.latlng);return;}if(picking)choose([e.latlng.lat,e.latlng.lng]);});
  window.map=map;
  map.on('moveend',()=>{if(rendered)send();});
- $('pick').onclick=()=>{locationRequest++;picking=!picking;$('pick').classList.toggle('active',picking);if(picking)message('지도에서 위치를 누르세요');else hideMessage();};
+ $('pick').onclick=()=>{locationRequest++;picking=!picking;$('pick').classList.toggle('active',picking);if(picking)message('지도에서 위치 선택');else hideMessage();};
  $('locate').onclick=()=>{
   if(!navigator.geolocation){message('위치 사용 불가 · 지도에서 선택');return;}
   message('위치 확인 중');const request=++locationRequest;

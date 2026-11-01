@@ -24,9 +24,9 @@ def when_text(iso, now):
 
 
 def row_label(r):
-    if r.get('odor_detected') is True: return f"나요 · {r.get('intensity') or ''}".strip(' ·')
-    if r.get('odor_detected') is False: return '안 나요'
-    return '모르겠어요'
+    if r.get('odor_detected') is True: return f"있음 · {r.get('intensity') or ''}".strip(' ·')
+    if r.get('odor_detected') is False: return '없음'
+    return '모름'
 
 
 def summary(repo, code, legacy_code=None, now=None):
@@ -68,7 +68,7 @@ def save_record(repo, code, cmd, now=None):
     now = now or now_kst()
     res = {'cmd_id': cmd.get('id'), 'ok': False}
     if repo is None:
-        res['error'] = '기록 저장 연결이 아직 없어요'; return res
+        res['error'] = '기록 저장소 연결 없음'; return res
     odor = cmd.get('odor'); odor = None if odor is None else bool(odor)
     context = 'indoor' if cmd.get('context') == 'indoor' else 'outdoor'
     intensity = cmd.get('intensity')
@@ -77,7 +77,7 @@ def save_record(repo, code, cmd, now=None):
         loc = check_location(cmd['lat'], cmd['lon'], cmd.get('accuracy'))
     zone = loc['zone_id'] if loc and loc['status'] == 'verified' else (loc['nearest_zone'] if loc else None)
     if zone is None:
-        res['error'] = '위치를 알 수 없어 구역을 정할 수 없어요'; return res
+        res['error'] = '위치 불명 · 구역 판정 불가'; return res
     try:
         prev = next((r for r in repo.get_observations_by_participant(code, limit=5) if r.get('lat') is not None), None)
     except Exception:

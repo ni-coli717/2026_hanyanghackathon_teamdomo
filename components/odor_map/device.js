@@ -148,7 +148,7 @@ function bind(panel){
   const name=$('dev-name');name.onchange=()=>setDevice({p_name:name.value},'이름 저장됨');
   $('home-form').onsubmit=e=>{e.preventDefault();searchHome($('home-q').value);};
   root.querySelectorAll('[data-result]').forEach(b=>b.onclick=()=>{const r=results[+b.dataset.result];setHome(r.label,r.lat,r.lon);map.setView([r.lat,r.lon],15);});
-  $('home-map').onclick=()=>{api_.pickingHome=true;state.panel='';state.collapsed=true;render();message('지도에서 우리 집을 누르세요');};
+  $('home-map').onclick=()=>{api_.pickingHome=true;state.panel='';state.collapsed=true;render();message('지도에서 우리 집 선택');};
   root.querySelectorAll('[data-lead]').forEach(b=>b.onclick=()=>setDevice({p_lead:+b.dataset.lead},'저장됨 · 15분 안에 반영'));
   root.querySelectorAll('[data-trigger]').forEach(b=>b.onclick=()=>setDevice({p_trigger:b.dataset.trigger},'저장됨 · 15분 안에 반영'));
   $('unpair').onclick=async()=>{try{await rpc('device_unpair',{p_device:cfg.id,p_token:cfg.token});}catch(e){}cfg=null;info=null;save(null);msg='';openPanel('devhome');};

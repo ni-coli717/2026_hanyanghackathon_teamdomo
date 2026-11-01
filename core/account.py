@@ -134,12 +134,12 @@ def _auth_post(path, body, params=None):
         m = str(j.get('msg') or j.get('error_description') or j.get('message') or j.get('error_code') or '')
         low = m.lower()
         if 'invalid login' in low or 'invalid_credentials' in low: raise EmailAuthError('이메일 또는 비밀번호가 맞지 않음')
-        if 'already' in low or 'registered' in low: raise EmailAuthError('이미 가입된 이메일 · 로그인하세요')
+        if 'already' in low or 'registered' in low: raise EmailAuthError('이미 가입된 이메일 · 로그인 필요')
         if 'password' in low and ('short' in low or 'least' in low or 'weak' in low): raise EmailAuthError('비밀번호 8자 이상')
         if 'email' in low and ('invalid' in low or 'valid' in low): raise EmailAuthError('이메일 주소 확인')
-        if 'not confirmed' in low: raise EmailAuthError('메일함의 확인 링크를 먼저 눌러 주세요')
+        if 'not confirmed' in low: raise EmailAuthError('메일함 확인 링크 먼저 확인')
         if 'rate' in low: raise EmailAuthError('잠시 후 다시 시도')
-        if 'refresh' in low or 'invalid_grant' in low: raise EmailAuthError('다시 로그인해 주세요')
+        if 'refresh' in low or 'invalid_grant' in low: raise EmailAuthError('다시 로그인 필요')
         raise EmailAuthError(m[:60] or f'오류 {r.status_code}')
     return j
 
@@ -159,7 +159,7 @@ def email_signup(email, password):
     j = _auth_post('signup', {'email': email, 'password': password})
     s = _session_from(j)
     if s is None:   # 메일 확인이 켜져 있으면 세션 없이 user 만 온다
-        raise EmailAuthError('가입 메일을 보냈어요 · 확인 링크를 누른 뒤 로그인')
+        raise EmailAuthError('가입 메일 발송 · 확인 링크 클릭 후 로그인')
     return s
 
 

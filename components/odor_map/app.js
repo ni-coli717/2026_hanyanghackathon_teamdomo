@@ -76,14 +76,14 @@ function runIntent(intent){
  else if(intent==='account')setTab('account');
 }
 const LOGIN_COPY={
- record:['기록은 로그인 후에 남길 수 있어요','누가 언제 기록했는지 알아야 정기 관측으로 셉니다'],
- device:['우리 집 기기는 로그인 후에 연결해요','기기와 계정을 이어야 우리 집 구역 예보로 가동합니다'],
- part:['참여 기록은 로그인 후에 볼 수 있어요','내 기록과 이번 주 정기 관측을 모아 봅니다'],
- account:['로그인','처음이면 닉네임만 정하면 됩니다'],
+ record:'로그인 후 기록 가능',
+ device:'로그인 후 기기 연결 가능',
+ part:'로그인 후 내 기록 확인',
+ account:'로그인',
 };
 function loginButtons(prefix){
  const p=acct.providers||{},none=!p.kakao&&!p.google&&!p.email;
- return `<div class="login-btns">${p.kakao?`<button class="auth-btn kakao" data-login="kakao"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6.9 4 3 7.1 3 11c0 2.4 1.6 4.6 4 5.8L6.3 20l3.8-2.4c.6.1 1.3.2 1.9.2 5.1 0 9-3.1 9-7s-3.9-6.8-9-6.8z" fill="#191919"/></svg>카카오로 시작</button>`:''}${p.google?'<button class="auth-btn google" data-login="google"><span class="g">G</span>구글로 시작</button>':''}${p.email?'<button class="auth-btn grey" data-login="email">이메일로 시작</button>':''}</div><p id="${prefix}-msg" class="auth-msg" role="status">${none?'로그인 준비 중 · 운영자가 설정하면 열립니다':''}</p>`;
+ return `<div class="login-btns">${p.kakao?`<button class="auth-btn kakao" data-login="kakao"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6.9 4 3 7.1 3 11c0 2.4 1.6 4.6 4 5.8L6.3 20l3.8-2.4c.6.1 1.3.2 1.9.2 5.1 0 9-3.1 9-7s-3.9-6.8-9-6.8z" fill="#191919"/></svg>카카오로 시작</button>`:''}${p.google?'<button class="auth-btn google" data-login="google"><span class="g">G</span>구글로 시작</button>':''}${p.email?'<button class="auth-btn grey" data-login="email">이메일로 시작</button>':''}</div><p id="${prefix}-msg" class="auth-msg" role="status">${none?'로그인 준비 중':''}</p>`;
 }
 function bindLoginButtons(root,msgId){
  root.querySelectorAll('[data-login]').forEach(b=>b.onclick=()=>{
@@ -101,11 +101,11 @@ function openLogin(intent){
 }
 function renderLogin(){
  if(rec?.step!=='login')return;
- const [h,sub]=LOGIN_COPY[rec.intent]||LOGIN_COPY.account;
+ const h=LOGIN_COPY[rec.intent]||LOGIN_COPY.account;
  const b=$('rec-body');
  b.innerHTML=`<div class="rec-head"><strong>로그인</strong><button class="x" data-rec="close" aria-label="닫기">✕</button></div>
-  <h2 class="login-h a-up d1">${esc(h)}</h2><p class="login-sub a-up d2">${esc(sub)}</p>${loginButtons('login')}
-  <p class="login-foot">로그인 없이도 지도와 예보는 그대로 볼 수 있어요</p><div class="auth-links"><button data-doc="terms">이용약관</button><button data-doc="privacy">개인정보 처리방침</button></div>`;
+  <h2 class="login-h a-up d1">${esc(h)}</h2>${loginButtons('login')}
+  <div class="auth-links"><button data-doc="terms">이용약관</button><button data-doc="privacy">개인정보 처리방침</button></div>`;
  b.querySelector('[data-rec=close]').onclick=()=>{sess.set('');closeRecord();};
  bindLoginButtons(b,'login-msg');
 }
@@ -130,7 +130,7 @@ function bindAuth(){
  $('signup-go').onclick=()=>{
   const nick=$('su-nick').value.trim(),consents=boxes().filter(b=>b.checked).map(b=>b.dataset.consent);
   if(nick.length<2){msg('signup-msg','닉네임 2자 이상');$('su-nick').focus();return;}
-  if(!['terms','privacy','location'].every(c=>consents.includes(c))){msg('signup-msg','필수 동의를 확인해 주세요');return;}
+  if(!['terms','privacy','location'].every(c=>consents.includes(c))){msg('signup-msg','필수 동의 확인');return;}
   msg('signup-msg','저장 중');setBusy(true);
   authCmd({op:'signup',nickname:nick,consents,code:$('su-code-row').hidden?'':$('su-code').value.trim().toUpperCase()});
  };
@@ -143,10 +143,10 @@ const DOCS={
 function openDoc(k){const d=DOCS[k];if(!d)return;$('doc-title').textContent=d[0];$('doc-body').innerHTML=d[1];if(!screen)prev='';showScreen('doc');}
 // ------------------------------------------------------------------ 사용법: 지도 위 4단계 · 밝힌 곳을 눌러야 다음
 const COACH=[
- {sel:'#head',h:'색 = 냄새 날 가능성',s:'이 구역 오늘 가능성이에요 · 카드를 눌러 앞으로 6시간 보기'},
- {sel:'#tabs [data-tab=forecast]',h:'예보와 지난 기록',s:'앞으로 몇 시간 · 지난 관측도 여기서 · 예보를 눌러 보세요'},
- {sel:'#wind-btn',h:'바람이 가는 쪽',s:'지도 위 작은 화살표도 같은 뜻이에요 · 바람 버튼을 눌러 보세요'},
- {sel:'#rec-btn',h:'냄새 나면 ＋기록',s:'두 번 누르면 끝 · 처음 한 번만 로그인해요'},
+ {sel:'#head',h:'색 = 냄새 날 가능성',s:'카드를 누르면 6시간 예보'},
+ {sel:'#tabs [data-tab=forecast]',h:'예보 · 지난 기록',s:'시간대별 예보와 지난 관측'},
+ {sel:'#wind-btn',h:'바람 방향',s:'화살표 = 바람이 가는 쪽'},
+ {sel:'#rec-btn',h:'＋기록',s:'냄새 나면 두 번 눌러 기록'},
 ];
 function startCoach(){
  if(!window.odorMap?.map)return;
@@ -238,17 +238,17 @@ function renderRecord(){
  const head=(title,close=true)=>`<div class="rec-head"><strong>${esc(title)}</strong><span class="muted">${esc(hm(new Date().toISOString()))}</span>${close?'<button class="x" data-rec="close" aria-label="닫기">✕</button>':''}</div>`;
  if(s==='locate'||s==='ask'){
   b.innerHTML=head('기록')+`<div class="rec-chip"><span>${chipText()}</span><span class="muted">${esc(modeText())}</span></div>
-   <h2 class="a-up d1">지금 냄새가 나요?</h2>
-   <div class="two big"><button class="dark a-pop d2" data-rec="yes" ${s==='locate'?'disabled':''}>나요</button><button class="a-pop d3" data-rec="no" ${s==='locate'?'disabled':''}>안 나요</button></div>
-   <div class="rec-row a-up d4"><span>장소</span><div class="seg2" role="radiogroup" aria-label="장소"><span class="thumb" style="transform:translateX(${rec.context==='indoor'?'100%':'0'})"></span><button role="radio" aria-checked="${rec.context==='outdoor'}" data-ctx="outdoor">실외</button><button role="radio" aria-checked="${rec.context==='indoor'}" data-ctx="indoor">실내</button></div><button class="link-btn" data-rec="unsure" ${s==='locate'?'disabled':''}>모르겠어요</button></div>`;
+   <h2 class="a-up d1">지금 냄새</h2>
+   <div class="two big"><button class="dark a-pop d2" data-rec="yes" ${s==='locate'?'disabled':''}>있음</button><button class="a-pop d3" data-rec="no" ${s==='locate'?'disabled':''}>없음</button></div>
+   <div class="rec-row a-up d4"><span>장소</span><div class="seg2" role="radiogroup" aria-label="장소"><span class="thumb" style="transform:translateX(${rec.context==='indoor'?'100%':'0'})"></span><button role="radio" aria-checked="${rec.context==='outdoor'}" data-ctx="outdoor">실외</button><button role="radio" aria-checked="${rec.context==='indoor'}" data-ctx="indoor">실내</button></div><button class="link-btn" data-rec="unsure" ${s==='locate'?'disabled':''}>모름</button></div>`;
  }else if(s==='unverified'){
   const l=rec.loc;
   b.innerHTML=head('기록')+`<div class="rec-title warn a-up d1"><span class="bang">!</span><h2>위치 확인 안 됨</h2></div>
    <dl class="rec-dl a-up d2">${l.status==='none'?`<dt>이유</dt><dd>${esc(l.reason)}</dd>`:`<dt>정확도</dt><dd>±${l.acc} m <span class="muted">(기준 ${MAX_ACC} m)</span></dd><dt>구역</dt><dd>${l.dist<=MAX_DIST_KM?esc(l.zone.name):`관측 구역 밖 · ${l.dist.toFixed(1)} km`}</dd>`}</dl>
    <div class="two a-up d3"><button class="dark" data-rec="retry">다시 확인</button><button data-rec="saveonly">저장만 (집계 제외)</button></div>`;
  }else if(s==='level'){
-  b.innerHTML=head('기록')+`<div class="rec-sub"><button class="back" data-rec="back" aria-label="뒤로">‹</button><b>나요</b><span class="muted">${chipText()} · ${rec.context==='outdoor'?'실외':'실내'}</span></div>
-   <h2 class="a-up d1">얼마나 심해요?</h2>
+  b.innerHTML=head('기록')+`<div class="rec-sub"><button class="back" data-rec="back" aria-label="뒤로">‹</button><b>있음</b><span class="muted">${chipText()} · ${rec.context==='outdoor'?'실외':'실내'}</span></div>
+   <h2 class="a-up d1">강도</h2>
    <div class="three big">${[[1,'약함'],[2,'보통'],[3,'심함']].map(([n,t],i)=>`<button class="a-pop d${i+2}" data-level="${n}"><b>${n}</b><span>${t}</span></button>`).join('')}</div>
    <span class="muted center a-up d5">누르면 바로 저장</span>`;
  }else if(s==='saving'){
@@ -256,7 +256,7 @@ function renderRecord(){
  }else if(s==='error'){
   b.innerHTML=head('기록')+`<div class="rec-title warn a-up d1"><span class="bang">!</span><h2>저장 안 됨</h2></div><p class="a-up d2">${esc(rec.error)}</p><div class="two a-up d3"><button class="dark" data-rec="again">다시 시도</button><button data-rec="close">닫기</button></div>`;
  }else if(s==='done'){
-  const r=rec.result;const what=r.odor===true?`나요 · 강도 ${r.intensity}`:r.odor===false?'안 나요':'모르겠어요';
+  const r=rec.result;const what=r.odor===true?`있음 · 강도 ${r.intensity}`:r.odor===false?'없음':'모름';
   const n=nextScheduled();
   b.innerHTML=`<div class="rec-done"><svg class="check" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#1F7A4B"/><path d="M10 17.5l5 5 9-10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="40"/></svg><h2>기록 완료</h2><span class="muted">#${esc((r.id||'').slice(0,4))}</span></div>
    <dl class="rec-dl a-up d3"><dt>내용</dt><dd>${esc(what)} · ${r.context==='outdoor'?'실외':'실내'}</dd><dt>위치</dt><dd>${esc(r.zone_name||'관측 구역 밖')} · ${r.check==='verified'?`확인됨 ±${rec.loc?.acc??'—'} m`:'미확인 · 집계 제외'}</dd><dt>구분</dt><dd>${r.mode==='scheduled'?'정기 관측':'수시 제보'}${r.odor===true&&r.check==='verified'?' · 지도에 표시':''}</dd></dl>
@@ -301,7 +301,7 @@ const panels={
  part(){
   const p=window.appArgs?.participation||{},w=p.week||{},days=w.days||[];
   const dots=days.map(d=>`<span><em>${esc(d.d)}</em>${d.future?'—':'●'.repeat(d.n)+'○'.repeat(Math.max(0,4-d.n))}</span>`).join('');
-  const recent=(p.recent||[]).map(r=>`<div class="rec-item"><span class="muted">${esc(r.when)}</span><b>${esc(r.label)}</b><span class="tag">${r.mode==='scheduled'?'정기':'수시'}</span><span class="tag ${r.check==='verified'?'ok':'bad'}">${r.check==='verified'?'위치 ✓':'구역 밖'}</span></div>`).join('')||'<p class="muted">아직 기록이 없어요 · 아래 ＋ 기록</p>';
+  const recent=(p.recent||[]).map(r=>`<div class="rec-item"><span class="muted">${esc(r.when)}</span><b>${esc(r.label)}</b><span class="tag">${r.mode==='scheduled'?'정기':'수시'}</span><span class="tag ${r.check==='verified'?'ok':'bad'}">${r.check==='verified'?'위치 ✓':'구역 밖'}</span></div>`).join('')||'<p class="muted">기록 없음</p>';
   const pct=w.total?Math.round(100*(w.done||0)/w.total):0;
   return {title:'참여',content:`
    <div class="pcard"><div class="row"><span>이번 주 정기 관측</span><b>${w.done??0} <span class="muted">/ ${w.total??28}</span></b></div><div class="pbar"><i style="width:${pct}%"></i></div><div class="pdays">${dots}</div></div>
@@ -318,7 +318,7 @@ const panels={
    ${acct.operator?'<button data-open="air">기기 USB 연결 (운영)</button>':''}
    </div><p class="muted" id="model-status">${esc(data?.model?.ok?(data.model.status||''):`추정 보류 · ${data?.model?.reason||''}`)}</p>`;
   if(!isMember())return {title:'계정',content:`
-   <div class="acard a-up d1"><b>로그인하면</b><span>냄새 기록 · 우리 집 기기 · 내 참여 기록</span><small>지도와 예보는 로그인 없이 그대로</small></div>
+   <div class="acard a-up d1"><b>기록 · 기기 연동은 로그인 필요</b></div>
    ${loginButtons('acct-login')}${guide}`};
   const p=window.appArgs?.participation||{};
   const dev=window.odorDevice,home=dev?.homeZoneName?.();
@@ -336,7 +336,7 @@ const panels={
  },
  devhome(){
   const dev=window.odorDevice;
-  if(!dev?.paired)return {title:'우리 집 기기',content:`<div class="dev-empty a-up d1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="#52636C" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="#52636C"/></svg><h3>연결된 기기 없음</h3><p>공기청정기를 연결하면 우리 집 구역에 냄새가 예보될 때 미리 가동합니다.</p><button class="primary-btn" data-open="pair">연결하기</button></div>`};
+  if(!dev?.paired)return {title:'우리 집 기기',content:`<div class="dev-empty a-up d1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="#52636C" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="#52636C"/></svg><h3>연결된 기기 없음</h3><p>냄새 예보 시 자동 가동</p><button class="primary-btn" data-open="pair">연결하기</button></div>`};
   const home=dev.homeZoneName?.();
   const eps=dev.info?.plan?.episodes||[];const now=Date.now();
   const rows=eps.slice(0,3).map(e=>`<div class="dev-ep"><span class="muted">${hm(e.on_at)}</span><b>${Date.parse(e.off_at)<now?'가동 끝':Date.parse(e.on_at)<=now?'가동 중':'가동 예정'}</b><span class="muted">${hm(e.odor_start)} ${esc(e.peak_level||'')} 예보 · ${hm(e.off_at)}까지</span></div>`).join('')||'<p class="muted">앞으로 가동 일정 없음</p>';
@@ -352,9 +352,9 @@ function bindPanel(panel){
   $('nick-edit').onclick=()=>{$('nick-form').hidden=!$('nick-form').hidden;$('nick-in').focus();};
   $('nick-form').onsubmit=e=>{e.preventDefault();const v=$('nick-in').value.trim();if(v.length<2)return;authCmd({op:'nickname',value:v});$('acct-msg').textContent='저장 중';};
   $('notify-row').onclick=()=>{authCmd({op:'notify',value:!acct.notify});};
-  $('code-row').onclick=()=>{const c=prompt('예전에 쓰던 참여 코드(예: P01). 이 계정으로 기록을 이어 줍니다.','');if(c&&c.trim())authCmd({op:'link_code',code:c.trim().toUpperCase()});};
+  $('code-row').onclick=()=>{const c=prompt('예전 참여 코드 (예: P01) · 이 계정으로 기록 연결','');if(c&&c.trim())authCmd({op:'link_code',code:c.trim().toUpperCase()});};
   $('logout').onclick=()=>{stor.set(null);sess.set('');authCmd({op:'logout'});};
-  $('withdraw').onclick=()=>{if(confirm('탈퇴하면 계정 정보는 지우고, 기록은 익명으로 남습니다. 진행할까요?')){stor.set(null);sess.set('');authCmd({op:'withdraw'});}};
+  $('withdraw').onclick=()=>{if(confirm('탈퇴 · 계정 정보 삭제, 기록은 익명 보관')){stor.set(null);sess.set('');authCmd({op:'withdraw'});}};
  }else if(panel==='part'){root.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));}
  else if(panel==='devhome'){window.odorDevice?.renderCard();}
 }

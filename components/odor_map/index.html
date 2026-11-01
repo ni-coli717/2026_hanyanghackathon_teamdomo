@@ -31,8 +31,8 @@
     <label><input type="checkbox" data-consent="location">위치정보 이용 (기록할 때만)<em>필수</em></label>
     <label><input type="checkbox" data-consent="notify">정기 관측 알림<em class="opt">선택</em></label>
    </div>
-   <button id="su-code-toggle" class="link-btn">기존 참여 코드가 있어요 ›</button>
-   <div id="su-code-row" hidden><label class="field-label" for="su-code">참여 코드</label><input id="su-code" class="field" placeholder="예: P01" autocapitalize="characters"><span class="hint">예전 기록이 이 계정으로 이어집니다</span></div>
+   <button id="su-code-toggle" class="link-btn">기존 참여 코드 입력 ›</button>
+   <div id="su-code-row" hidden><label class="field-label" for="su-code">참여 코드</label><input id="su-code" class="field" placeholder="예: P01" autocapitalize="characters"><span class="hint">예전 기록을 이 계정으로 연결</span></div>
    <p id="signup-msg" class="auth-msg" role="status"></p>
    <button id="signup-go" class="primary-btn">가입 완료</button>
   </div>
@@ -52,7 +52,7 @@
   <button id="dev-btn" class="devbtn" aria-label="우리 집 기기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="currentColor"/></svg>기기<i id="dev-dot" hidden></i></button>
  </header>
  <button id="sched-chip" class="float schip" hidden><i></i>다음 정기 관측 <b></b></button>
- <div id="coach-chip" class="cchip" hidden><button id="coach-start">처음이세요? 사용법 보기</button><button id="coach-dismiss" aria-label="닫기">✕</button></div>
+ <div id="coach-chip" class="cchip" hidden><button id="coach-start">사용법 보기</button><button id="coach-dismiss" aria-label="닫기">✕</button></div>
 
  <div id="fabs">
   <button id="wind-btn" class="float fab wind" aria-label="바람 방향 상세">
@@ -65,7 +65,7 @@
  </div>
 
  <div id="notice" class="float" role="status" hidden></div>
- <div id="tile-error" class="float" role="alert" hidden><strong>지도 연결 실패</strong><span>인터넷 연결을 확인하세요</span><button id="retry">다시 시도</button></div>
+ <div id="tile-error" class="float" role="alert" hidden><strong>지도 연결 실패</strong><span>인터넷 연결 확인</span><button id="retry">다시 시도</button></div>
 
  <section id="sheet" class="collapsed" aria-label="냄새 정보">
   <div id="grip" aria-hidden="true"><div class="handle"></div></div>
@@ -80,7 +80,7 @@
      <div class="rule"></div>
      <div class="row"><strong id="ahead-title">앞으로 6시간</strong><span id="peak" class="peak"></span></div>
      <div id="bars" aria-label="시간별 냄새 가능성"></div>
-     <div id="now-zones"><div class="row"><strong>구역별</strong><span class="muted">누르면 그 구역 기준</span></div><div class="zones" id="now-zone-list"></div></div>
+     <div id="now-zones"><div class="row"><strong>구역별</strong></div><div class="zones" id="now-zone-list"></div></div>
      <div id="foot" class="foot"></div>
     </div>
    </div>
@@ -108,5 +108,5 @@
   <div id="rec-body"></div>
  </section>
 </main>
-<script src="vendor/leaflet.js"></script><script src="map.js?v=8"></script><script src="device.js?v=6"></script><script src="app.js?v=6"></script>
+<script src="vendor/leaflet.js"></script><script src="map.js?v=9"></script><script src="device.js?v=7"></script><script src="app.js?v=7"></script>
 </body></html>

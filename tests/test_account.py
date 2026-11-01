@@ -49,5 +49,5 @@ def test_participation_summary(tmp_path):
     from zoneinfo import ZoneInfo
     s = summary(repo, 'PABC', legacy_code='P01', now=now.replace(tzinfo=ZoneInfo('Asia/Seoul')))
     assert s['my_count'] == 3 and s['verified_pct'] == 100 and s['legacy_count'] == 1
-    assert s['week']['done'] == 1 and s['neighbors_week'] == 2 and s['recent'][-1]['label'] == '나요 · 2' and s['recent'][0]['label'] == '안 나요'
+    assert s['week']['done'] == 1 and s['neighbors_week'] == 2 and s['recent'][-1]['label'] == '있음 · 2' and s['recent'][0]['label'] == '없음'
     assert summary(None, 'PABC')['my_count'] == 0

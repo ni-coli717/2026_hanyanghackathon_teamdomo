@@ -126,7 +126,7 @@ def check():
 
             # ＋기록 before login: login sheet, map stays usable; position/time untouched.
             frame.locator('#rec-btn').click()
-            expect(frame.locator('#rec-body')).to_contain_text('기록은 로그인 후에 남길 수 있어요')
+            expect(frame.locator('#rec-body')).to_contain_text('로그인 후 기록 가능')
             frame.locator('#rec .x').click()
             assert actual.evaluate('odorMap.state.position[0]') == 37.662
 
