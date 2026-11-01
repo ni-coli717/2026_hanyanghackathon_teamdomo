@@ -25,11 +25,11 @@ def open_map(browser, width, height):
 
 
 def go(frame, actual, prefix):
-    """Scrub the 예보 tab slider to the frame starting with prefix."""
+    """Open the 예보 tab at the frame starting with prefix (지난 기록 or 앞으로, whichever holds it)."""
     i = actual.evaluate('p=>odorMap.data.frames.findIndex(f=>f.at.startsWith(p))', prefix)
     assert i >= 0, prefix
     actual.evaluate('odorMap.setTab("forecast")')
-    frame.locator('#time-slider').evaluate('(el,i)=>{el.value=i;el.dispatchEvent(new Event("input",{bubbles:true}))}', i)
+    actual.evaluate('i=>{odorMap.state.fview=i<odorMap.data.latest_index?"past":"ahead";odorMap.setTime(i)}', i)
     return i
 
 
@@ -111,10 +111,10 @@ def check():
             page.wait_for_timeout(1200)
             assert actual.evaluate('odorMap.state.position[0]') == 37.662
 
-            # 안내 > 공기질 관리 기기: honest status, toggle works, model status shown once in 안내.
-            frame.locator('[data-tab="help"]').click()
+            # 계정 탭(안내 묶음) > 공기질 관리 기기: honest status, toggle works, model status shown once.
+            frame.locator('[data-tab="account"]').click()
             expect(frame.locator('#model-status')).to_have_text('실제 제보 학습 · 센서 보정 전')
-            frame.locator('[data-open="air"]').click()
+            actual.evaluate('odorMap.openPanel("air")')   # 메뉴에는 운영자만 보인다
             expect(frame.locator('#device-state')).to_have_text('연결된 기기 없음')
             frame.locator('#auto-toggle').click()
             expect(frame.locator('#auto-toggle')).to_have_text('사용 안 함')
@@ -122,11 +122,12 @@ def check():
             expect(frame.locator('#auto-toggle')).to_have_text('사용 중')
             page.screenshot(path=f'artifacts/air-{width}.png', full_page=True)
             frame.locator('#back').click()
-            expect(frame.locator('#panel-title')).to_have_text('안내')
+            expect(frame.locator('#panel-title')).to_have_text('계정')
 
-            # 기록 tab links out; position/time untouched.
-            frame.locator('[data-tab="record"]').click()
-            expect(frame.locator('#panel-content')).to_contain_text('냄새 기록')
+            # ＋기록 before login: login sheet, map stays usable; position/time untouched.
+            frame.locator('#rec-btn').click()
+            expect(frame.locator('#rec-body')).to_contain_text('기록은 로그인 후에 남길 수 있어요')
+            frame.locator('#rec .x').click()
             assert actual.evaluate('odorMap.state.position[0]') == 37.662
 
             # Position picking, outside-Gimpo rejection, geolocation denial.
@@ -172,7 +173,7 @@ def check_model_missing():
         for width, height in [(1440, 900), (390, 844)]:
             page, frame, actual, errors = open_map(browser, width, height)
             expect(frame.locator('#level-word')).to_have_text('보류')
-            frame.locator('[data-tab="help"]').click()
+            frame.locator('[data-tab="account"]').click()
             expect(frame.locator('#model-status')).to_contain_text('추정 보류')
             fills = actual.evaluate('[...document.querySelectorAll("path.leaflet-interactive")].map(p=>p.getAttribute("fill"))')
             assert set(fills) == {'#9AA5AE'}, fills

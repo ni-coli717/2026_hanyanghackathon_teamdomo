@@ -1,17 +1,22 @@
 'use strict';
-// 코넥트 v3 · 계정 화면(로그인·가입·사용법), ＋기록 흐름, 참여·계정·안내 탭, 우리 집 기기 시트.
+// 코넥트 v4 · 지도 먼저(로그인 없이), 로그인은 ＋기록·참여·우리 집 기기를 열 때만 시트로. 사용법은 밝힌 곳을 눌러 넘기는 4단계.
 // 서버와의 약속: 브라우저는 명령(auth_cmd / record_cmd)만 보내고, 판정·저장은 전부 Python 이 한다.
 (function(){
 const AUTH_KEY='odor.auth.v1';              // {refresh}: 이메일 로그인 유지용. 토큰 하나뿐, 키·비밀번호는 저장 안 함
 const MAX_ACC=150,MAX_DIST_KM=1.5;          // core/geo_check 와 같은 값(표시용). 판정은 서버가 다시 한다
 const SCHED=['07:30','12:30','18:30','22:00'];
-let acct={status:'anon'},screen='',prev='login',emailMode='login',tut=0,pending=0,cmdSeq=0,tutReplay=false;
+const INTENT_KEY='odor.intent.v1';           // 로그인 전에 누른 기능(sessionStorage). OAuth 로 다녀와도 이어서 연다
+const COACH_KEY='odor.coach.v1';             // 사용법을 봤거나 닫았음(localStorage)
+let acct={status:'anon'},screen='',prev='',emailMode='login',pending=0,cmdSeq=0,tutSent=false,coachStep=-1;
 let rec=null,recMarker=null,resumeTried=false;
 const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // 이메일 로그인 유지: localStorage + 같은 주소의 쿠키. 쿠키는 서버가 첫 실행에서 바로 읽어(st.context.cookies) '로그인 확인 중' 왕복을 줄인다.
 const stor={get(){try{return JSON.parse(localStorage.getItem(AUTH_KEY)||'null');}catch(e){return null;}},
  set(v){try{if(v)localStorage.setItem(AUTH_KEY,JSON.stringify(v));else localStorage.removeItem(AUTH_KEY);}catch(e){}
   try{document.cookie='odor_refresh='+(v?encodeURIComponent(v.refresh):'')+'; path=/; max-age='+(v?2592000:0)+'; SameSite=Lax';}catch(e){}}};
+const sess={get(){try{return sessionStorage.getItem(INTENT_KEY)||'';}catch(e){return '';}},set(v){try{if(v)sessionStorage.setItem(INTENT_KEY,v);else sessionStorage.removeItem(INTENT_KEY);}catch(e){}}};
+const seen={get(){try{return localStorage.getItem(COACH_KEY)==='1';}catch(e){return false;}},set(){try{localStorage.setItem(COACH_KEY,'1');}catch(e){}}};
+const isMember=()=>acct.status==='ok'||acct.status==='tutorial';
 const hm=iso=>{if(!iso)return '—';const p=parts(iso);return `${p.hour}:${p.minute}`;};
 function cmd(kind,body){
  if(!state)state={sequence:0};
@@ -25,7 +30,6 @@ function showScreen(name,dir='fwd'){
  auth.querySelectorAll('.screen').forEach(s=>{const on=s.id==='s-'+name;if(on&&s.hidden){s.hidden=false;s.classList.remove('in-fwd','in-back');if(!reduced())s.classList.add(dir==='back'?'in-back':'in-fwd');}else if(!on)s.hidden=true;});
  if(screen&&screen!==name&&name!=='doc')prev=screen;
  screen=name;
- if(name==='tutorial')renderTutorial();
  if(name==='email'){$('em-mail').focus?.();}
 }
 function hideAuth(){$('auth').hidden=true;screen='';}
@@ -33,35 +37,83 @@ function msg(id,t){const el=$(id);if(el)el.textContent=t||'';}
 function setBusy(on){document.querySelectorAll('#auth .primary-btn,#auth .auth-btn').forEach(b=>b.disabled=!!on);}
 // ------------------------------------------------------------------ 계정 상태 반영
 function applyAccount(a){
+ const before=acct.status;
  acct=a||{status:'anon'};
  if(acct.refresh!==undefined){stor.set(acct.refresh?{refresh:acct.refresh}:null);}
  if(acct.cmd_done&&acct.cmd_done>=pending){pending=0;setBusy(false);}
  if(acct.status==='anon'){
   const saved=stor.get();
-  if(saved?.refresh&&!resumeTried&&acct.providers?.email){resumeTried=true;showScreen('login');msg('login-msg','로그인 확인 중');authCmd({op:'resume',refresh:saved.refresh});return;}
-  if(!acct.providers?.email)stor.set(null);
-  if(!tutReplay){if(screen!=='email'&&screen!=='doc')showScreen('login');}
-  $('login-kakao').hidden=!acct.providers?.kakao;$('login-google').hidden=!acct.providers?.google;$('login-email').hidden=!acct.providers?.email;
-  const none=!acct.providers?.kakao&&!acct.providers?.google&&!acct.providers?.email;
-  msg(screen==='email'?'email-msg':'login-msg',acct.notice||(none?'로그인 준비 중 · 운영자가 설정하면 열립니다':''));
-  if(acct.notice&&screen==='email')setBusy(false);
-  return;
- }
- if(acct.status==='signup'){
+  // 이메일 로그인 유지: 화면을 막지 않고 뒤에서 조용히 복원한다
+  if(saved?.refresh&&!resumeTried&&acct.providers?.email){resumeTried=true;authCmd({op:'resume',refresh:saved.refresh});}
+  else if(!acct.providers?.email)stor.set(null);
+  if(screen==='signup')hideAuth();
+  if(screen==='email'){msg('email-msg',acct.notice||'');if(acct.notice)setBusy(false);}
+  else if(rec?.step==='login'){renderLogin();if(acct.notice)msg('login-msg',acct.notice);}
+ }else if(acct.status==='signup'){
+  if(rec?.step==='login')closeRecord(true);
   if(screen!=='signup'&&screen!=='doc'){showScreen('signup');$('signup-via').textContent=acct.provider_name?`${acct.provider_name} 계정`:'';if(acct.name&&!$('su-nick').value)$('su-nick').value=acct.name.slice(0,20);}
-  msg('signup-msg',acct.notice||'');return;
+  msg('signup-msg',acct.notice||'');
+ }else{
+  // 가입 직후(tutorial)도 회원. 사용법은 지도 위 4단계라 서버 표시만 끝낸다.
+  if(acct.status==='tutorial'&&!tutSent){tutSent=true;setTimeout(()=>authCmd({op:'tutorial_done'}),0);}
+  if(screen==='email'||screen==='signup')hideAuth();
+  if(rec?.step==='login')closeRecord(true);
+  const intent=sess.get();
+  if(intent){sess.set('');setTimeout(()=>runIntent(intent),0);}
  }
- if(acct.status==='tutorial'){if(screen!=='tutorial'){tut=0;tutReplay=false;showScreen('tutorial');}return;}
- // ok
- if(!tutReplay)hideAuth();
+ if(before!==acct.status||acct.notice)setTimeout(()=>window.odorMap?.render(),0);
+}
+// 로그인이 필요한 기능: 회원이면 바로, 아니면 하려던 일을 기억하고 로그인 시트
+function requireLogin(intent){
+ if(isMember()){runIntent(intent);return;}
+ sess.set(intent);openLogin(intent);
+}
+function runIntent(intent){
+ if(!isMember()||!window.odorMap?.map)return;
+ if(intent==='record')openRecord();
+ else if(intent==='device')openPanel('devhome');
+ else if(intent==='part')setTab('part');
+ else if(intent==='account')setTab('account');
+}
+const LOGIN_COPY={
+ record:['기록은 로그인 후에 남길 수 있어요','누가 언제 기록했는지 알아야 정기 관측으로 셉니다'],
+ device:['우리 집 기기는 로그인 후에 연결해요','기기와 계정을 이어야 우리 집 구역 예보로 가동합니다'],
+ part:['참여 기록은 로그인 후에 볼 수 있어요','내 기록과 이번 주 정기 관측을 모아 봅니다'],
+ account:['로그인','처음이면 닉네임만 정하면 됩니다'],
+};
+function loginButtons(prefix){
+ const p=acct.providers||{},none=!p.kakao&&!p.google&&!p.email;
+ return `<div class="login-btns">${p.kakao?`<button class="auth-btn kakao" data-login="kakao"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C6.9 4 3 7.1 3 11c0 2.4 1.6 4.6 4 5.8L6.3 20l3.8-2.4c.6.1 1.3.2 1.9.2 5.1 0 9-3.1 9-7s-3.9-6.8-9-6.8z" fill="#191919"/></svg>카카오로 시작</button>`:''}${p.google?'<button class="auth-btn google" data-login="google"><span class="g">G</span>구글로 시작</button>':''}${p.email?'<button class="auth-btn grey" data-login="email">이메일로 시작</button>':''}</div><p id="${prefix}-msg" class="auth-msg" role="status">${none?'로그인 준비 중 · 운영자가 설정하면 열립니다':''}</p>`;
+}
+function bindLoginButtons(root,msgId){
+ root.querySelectorAll('[data-login]').forEach(b=>b.onclick=()=>{
+  const pv=b.dataset.login;
+  if(pv==='email'){if(rec?.step==='login')closeRecord(true);msg('email-msg','');showScreen('email');return;}
+  msg(msgId,pv==='kakao'?'카카오로 이동 중':'구글로 이동 중');root.querySelectorAll('[data-login]').forEach(x=>x.disabled=true);
+  authCmd({op:'login',provider:pv});
+ });
+ root.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>openDoc(b.dataset.doc));
+}
+function openLogin(intent){
+ rec={step:'login',intent};
+ $('rec-dim').hidden=false;$('rec').hidden=false;$('rec').classList.remove('out');
+ renderLogin();
+}
+function renderLogin(){
+ if(rec?.step!=='login')return;
+ const [h,sub]=LOGIN_COPY[rec.intent]||LOGIN_COPY.account;
+ const b=$('rec-body');
+ b.innerHTML=`<div class="rec-head"><strong>로그인</strong><button class="x" data-rec="close" aria-label="닫기">✕</button></div>
+  <h2 class="login-h a-up d1">${esc(h)}</h2><p class="login-sub a-up d2">${esc(sub)}</p>${loginButtons('login')}
+  <p class="login-foot">로그인 없이도 지도와 예보는 그대로 볼 수 있어요</p><div class="auth-links"><button data-doc="terms">이용약관</button><button data-doc="privacy">개인정보 처리방침</button></div>`;
+ b.querySelector('[data-rec=close]').onclick=()=>{sess.set('');closeRecord();};
+ bindLoginButtons(b,'login-msg');
 }
 // ------------------------------------------------------------------ 로그인 · 가입
 function bindAuth(){
- $('login-kakao').onclick=()=>{msg('login-msg','카카오로 이동 중');setBusy(true);authCmd({op:'login',provider:'kakao'});};
- $('login-google').onclick=()=>{msg('login-msg','구글로 이동 중');setBusy(true);authCmd({op:'login',provider:'google'});};
- $('login-email').onclick=()=>{msg('email-msg','');showScreen('email');};
- document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>showScreen(b.dataset.back==='prev'?(prev||'login'):b.dataset.back,'back'));
- document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>openDoc(b.dataset.doc));
+ document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{const t=b.dataset.back==='prev'?prev:'';if(t)showScreen(t,'back');else{hideAuth();sess.set('');}});
+ document.querySelectorAll('#auth [data-doc]').forEach(b=>b.onclick=()=>openDoc(b.dataset.doc));
+ $('signup-later').onclick=()=>{sess.set('');stor.set(null);authCmd({op:'logout'});hideAuth();};
  document.querySelectorAll('.tabs2 [role=tab]').forEach(t=>t.onclick=()=>setEmailMode(t.dataset.mode));
  $('email-form').onsubmit=e=>{
   e.preventDefault();const mail=$('em-mail').value.trim(),pw=$('em-pw').value;
@@ -82,52 +134,60 @@ function bindAuth(){
   msg('signup-msg','저장 중');setBusy(true);
   authCmd({op:'signup',nickname:nick,consents,code:$('su-code-row').hidden?'':$('su-code').value.trim().toUpperCase()});
  };
- $('tut-next').onclick=()=>{if(tut<3){tut++;renderTutorial('fwd');}else finishTutorial();};
- $('tut-prev').onclick=()=>{if(tut>0){tut--;renderTutorial('back');}};
- $('tut-skip').onclick=finishTutorial;
 }
 function setEmailMode(m){emailMode=m;document.querySelectorAll('.tabs2 [role=tab]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.mode===m)));document.querySelector('.tabs2 .thumb').style.transform=m==='login'?'translateX(0)':'translateX(100%)';$('email-go').textContent=m==='login'?'로그인':'다음';$('em-pw').autocomplete=m==='login'?'current-password':'new-password';}
 const DOCS={
  terms:['이용약관','<p>코넥트는 김포 운양동 주민이 냄새를 기록하고 예보를 보는 참여형 서비스입니다.</p><p>기록은 연구·예보 개선과 지역 공유 자료로 쓰이며, 개인을 알 수 있는 형태로 공개하지 않습니다.</p><p>허위 기록·반복 기록은 집계에서 제외될 수 있습니다. 서비스는 예고 없이 바뀌거나 중단될 수 있습니다.</p>'],
  privacy:['개인정보 처리방침','<p><b>수집 항목</b> 로그인 계정 식별자, 이메일(가린 형태로 표시), 닉네임, 기록할 때의 위치(약 100 m 단위로 반올림), 기록 내용.</p><p><b>이용 목적</b> 기록 저장과 본인 확인, 구역 판정, 예보 계산.</p><p><b>보관</b> 계정 삭제를 요청하면 계정 정보는 지우고 기록은 익명으로 남습니다.</p><p><b>제3자</b> 우리 집 검색은 OpenStreetMap 에 검색어만 보냅니다. 그 밖에 외부로 보내지 않습니다.</p>'],
 };
-function openDoc(k){const d=DOCS[k];if(!d)return;$('doc-title').textContent=d[0];$('doc-body').innerHTML=d[1];showScreen('doc');}
-// ------------------------------------------------------------------ 사용법 4장
-const TUT=[
- {h:'색 = 냄새 날 가능성',s:'구역 3곳 · 앞으로 6시간',art:`<svg viewBox="0 0 350 400" aria-hidden="true"><path d="M0 30 C80 50 200 14 350 44 L350 0 L0 0 Z" fill="#DDEFF4"/>
-  <path class="a-fade d1" d="M50 170 C30 90 110 50 180 54 C260 58 300 120 270 165 C225 190 110 198 50 170 Z" fill="rgba(188,51,40,0.28)" stroke="#BC3328" stroke-width="1.5"/>
-  <path class="a-fade d3" d="M50 170 C110 198 225 190 270 165 C280 215 270 245 245 255 C180 265 100 260 62 248 C48 220 46 195 50 170 Z" fill="rgba(138,95,0,0.28)" stroke="#8A5F00" stroke-width="1.5"/>
-  <path class="a-fade d5" d="M62 248 C100 260 180 265 245 255 C270 300 255 360 190 378 C125 388 70 360 62 318 C58 290 58 268 62 248 Z" fill="rgba(31,122,75,0.28)" stroke="#1F7A4B" stroke-width="1.5"/></svg>
-  <div class="tut-card a-up d7"><div class="tut-legend"><span class="lv-low">■ 낮음</span><span class="lv-mid">■ 보통</span><span class="lv-high">■ 높음</span></div>
-  <div class="tut-bars">${[['low',10,8],['high',30,9],['high',30,10],['mid',20,11],['low',10,12],['low',10,13]].map(([c,h,d])=>`<i class="${c} a-grow d${d}" style="height:${h}px"></i>`).join('')}</div></div>`},
- {h:'두 번 누르면 기록 끝',s:'안 나요는 한 번에 저장',art:`<div class="tut-form">
-  <b class="a-up d1">지금 냄새가 나요?</b>
-  <div class="two a-up d2"><span class="dark tap">나요<i class="ripple"></i></span><span>안 나요</span></div>
-  <b class="a-up d5" style="margin-top:8px">얼마나?</b>
-  <div class="three"><span class="a-pop d6">1</span><span class="a-pop d7 pick">2</span><span class="a-pop d8">3</span></div></div>`},
- {h:'하루 4번 정기 관측',s:'그 외 시간은 수시 제보',art:`<div class="tut-form">
-  <div class="two"><div class="tcard a-up d1"><span>아침</span><b>07:30</b></div><div class="tcard dark a-up d2 ring"><span>점심</span><b>12:30</b></div><div class="tcard a-up d3"><span>저녁</span><b>18:30</b></div><div class="tcard a-up d4"><span>밤</span><b>22:00</b></div></div>
-  <div class="trow a-up d5"><span>앞뒤 15분</span><b>정기 관측</b></div>
-  <div class="trow a-up d6"><span>안 나요도 기록</span><b class="lv-low">예보 정확도 ↑</b></div></div>`},
- {h:'위치와 우리 집',s:'기록 위치 확인 · 우리 집 구역 예보',art:`<svg viewBox="0 0 350 400" aria-hidden="true"><path d="M0 30 C80 50 200 14 350 44 L350 0 L0 0 Z" fill="#DDEFF4"/>
-  <path d="M50 170 C30 90 110 50 180 54 C260 58 300 120 270 165 C225 190 110 198 50 170 Z" fill="rgba(10,106,133,0.05)" stroke="#5E6C74"/>
-  <path class="a-fade d9" d="M50 170 C110 198 225 190 270 165 C280 215 270 245 245 255 C180 265 100 260 62 248 C48 220 46 195 50 170 Z" fill="rgba(10,106,133,0.16)" stroke="#0A6A85" stroke-width="2"/>
-  <path d="M62 248 C100 260 180 265 245 255 C270 300 255 360 190 378 C125 388 70 360 62 318 C58 290 58 268 62 248 Z" fill="rgba(10,106,133,0.05)" stroke="#5E6C74"/></svg>
-  <span class="tut-dot pulse"></span><span class="tut-dot a-pop d2"></span>
-  <div class="tut-search"><div class="a-up d3">반도유보라</div><div class="res a-up d5"><b>운양동 반도유보라 6차</b><span>구역 운양역</span></div></div>
-  <div class="tut-home a-pop d11"><span>우리 집 구역</span><b>운양역</b></div>`},
+function openDoc(k){const d=DOCS[k];if(!d)return;$('doc-title').textContent=d[0];$('doc-body').innerHTML=d[1];if(!screen)prev='';showScreen('doc');}
+// ------------------------------------------------------------------ 사용법: 지도 위 4단계 · 밝힌 곳을 눌러야 다음
+const COACH=[
+ {sel:'#head',h:'색 = 냄새 날 가능성',s:'이 구역 오늘 가능성이에요 · 카드를 눌러 앞으로 6시간 보기'},
+ {sel:'#tabs [data-tab=forecast]',h:'예보와 지난 기록',s:'앞으로 몇 시간 · 지난 관측도 여기서 · 예보를 눌러 보세요'},
+ {sel:'#wind-btn',h:'바람이 가는 쪽',s:'지도 위 작은 화살표도 같은 뜻이에요 · 바람 버튼을 눌러 보세요'},
+ {sel:'#rec-btn',h:'냄새 나면 ＋기록',s:'두 번 누르면 끝 · 처음 한 번만 로그인해요'},
 ];
-function renderTutorial(dir){
- const t=TUT[tut];$('tut-num').textContent=`사용법 ${tut+1} / 4`;
- const stage=$('tut-stage');stage.innerHTML=`<div class="tut-slide ${reduced()?'':dir==='back'?'in-back':'in-fwd'}"><div class="tut-art">${t.art}</div><div class="tut-text a-up d2"><h1>${esc(t.h)}</h1><span>${esc(t.s)}</span></div></div>`;
- $('tut-dots').innerHTML=[0,1,2,3].map(i=>`<span class="${i===tut?'on':''}"></span>`).join('');
- $('tut-prev').hidden=tut===0;$('tut-next').textContent=tut===3?'시작하기':'다음';
+function startCoach(){
+ if(!window.odorMap?.map)return;
+ hideAuth();if(rec)closeRecord(true);
+ window.odorMap.expand(false);
+ coachStep=0;$('coach').hidden=false;$('coach-chip').hidden=true;
+ showCoach();
 }
-function finishTutorial(){
- if(tutReplay){tutReplay=false;hideAuth();return;}
- authCmd({op:'tutorial_done'});hideAuth();
+function coachTarget(){return coachStep<0?null:document.querySelector(COACH[coachStep].sel);}
+function showCoach(){
+ if(coachStep<0)return;
+ const c=COACH[coachStep],t=coachTarget();
+ $('coach-num').textContent=`사용법 ${coachStep+1} / ${COACH.length}`;$('coach-h').textContent=c.h;$('coach-s').textContent=c.s;
+ $('coach-dots').innerHTML=COACH.map((_,i)=>`<span class="${i===coachStep?'on':''}"></span>`).join('');
+ placeCoach(t);setTimeout(()=>placeCoach(coachTarget()),380);   // 시트가 펴지는 동안 위치가 바뀐다
 }
-function replayTutorial(){tutReplay=true;tut=0;showScreen('tutorial');}
+function placeCoach(t){
+ if(coachStep<0||!t)return;
+ const r=t.getBoundingClientRect(),pad=6,hole=$('coach-hole'),tip=$('coach-tip');
+ Object.assign(hole.style,{left:`${r.left-pad}px`,top:`${r.top-pad}px`,width:`${r.width+pad*2}px`,height:`${r.height+pad*2}px`,borderRadius:t.id==='rec-btn'?'40px':'16px'});
+ const below=r.top+r.height/2<window.innerHeight/2;
+ tip.style.top=below?`${r.bottom+pad+12}px`:'';tip.style.bottom=below?'':`${window.innerHeight-r.top+pad+12}px`;
+}
+function coachNext(from){
+ if(coachStep!==from)return;
+ if(coachStep>=COACH.length-1){endCoach();return;}
+ coachStep++;showCoach();
+}
+function endCoach(skip){
+ coachStep=-1;$('coach').hidden=true;seen.set();renderCoachChip();
+ if(skip)window.odorMap?.expand(false);
+}
+// 사용법 중에는 밝힌 곳과 안내 카드만 눌린다
+function coachGuard(e){
+ if(coachStep<0)return;
+ const el=e.target;if($('coach-tip').contains(el))return;
+ const t=coachTarget();
+ if(t&&t.contains(el)){if(e.type==='click'){const n=coachStep;setTimeout(()=>coachNext(n),0);}return;}
+ e.stopPropagation();if(e.cancelable)e.preventDefault();
+}
+function renderCoachChip(){const el=$('coach-chip');if(el)el.hidden=seen.get()||coachStep>=0||$('shell').hidden;}
 // ------------------------------------------------------------------ 정기 관측 칩
 function nextScheduled(){
  const now=new Date();const p=parts(now.toISOString());const cur=Number(p.hour)*60+Number(p.minute);
@@ -136,20 +196,22 @@ function nextScheduled(){
 }
 function renderChip(){
  const el=$('sched-chip');if(!el||!data)return;
+ renderCoachChip();
  const n=nextScheduled();el.hidden=false;el.querySelector('b').textContent=n.label;
  const live=n.minutes<=15;el.classList.toggle('live',live);
  el.childNodes[1].textContent=live?'정기 관측 중 ':'다음 정기 관측 ';
 }
 // ------------------------------------------------------------------ ＋ 기록
 function openRecord(){
+ if(!isMember()){requireLogin('record');return;}
  rec={step:'locate',loc:null,context:'outdoor',odor:null,intensity:null,unverified:false,error:''};
  $('rec-dim').hidden=false;$('rec').hidden=false;$('rec').classList.remove('out');
  renderRecord();locate();
 }
-function closeRecord(){
+function closeRecord(now){
  if(!rec)return;
- const done=()=>{$('rec').hidden=true;$('rec-dim').hidden=true;rec=null;};
- if(reduced()){done();return;}
+ const r=rec,done=()=>{if(rec!==r)return;$('rec').hidden=true;$('rec-dim').hidden=true;rec=null;};
+ if(now||reduced()){done();return;}
  $('rec').classList.add('out');setTimeout(done,320);
 }
 function locate(){
@@ -233,7 +295,7 @@ function dropPin(){
  const n=rec.result?.odor===true?String(rec.result.intensity||''):'';
  recMarker=L.marker([l.lat,l.lon],{icon:L.divIcon({className:'rec-pin',html:`<i class="ring"></i><b>${esc(n)}</b>`,iconSize:[24,24],iconAnchor:[12,12]}),interactive:false,keyboard:false,zIndexOffset:950}).addTo(map);
 }
-// ------------------------------------------------------------------ 참여 · 계정 · 안내 · 기기 패널
+// ------------------------------------------------------------------ 참여 · 계정(안내 포함) · 기기 패널
 const DAYS=['월','화','수','목','금','토','일'];
 const panels={
  part(){
@@ -241,37 +303,36 @@ const panels={
   const dots=days.map(d=>`<span><em>${esc(d.d)}</em>${d.future?'—':'●'.repeat(d.n)+'○'.repeat(Math.max(0,4-d.n))}</span>`).join('');
   const recent=(p.recent||[]).map(r=>`<div class="rec-item"><span class="muted">${esc(r.when)}</span><b>${esc(r.label)}</b><span class="tag">${r.mode==='scheduled'?'정기':'수시'}</span><span class="tag ${r.check==='verified'?'ok':'bad'}">${r.check==='verified'?'위치 ✓':'구역 밖'}</span></div>`).join('')||'<p class="muted">아직 기록이 없어요 · 아래 ＋ 기록</p>';
   const pct=w.total?Math.round(100*(w.done||0)/w.total):0;
-  return {title:'참여',aside:`<button class="link-btn" data-open="account">계정 ›</button>`,content:`
+  return {title:'참여',content:`
    <div class="pcard"><div class="row"><span>이번 주 정기 관측</span><b>${w.done??0} <span class="muted">/ ${w.total??28}</span></b></div><div class="pbar"><i style="width:${pct}%"></i></div><div class="pdays">${dots}</div></div>
    <div class="pstats"><div><span>내 기록</span><b>${p.my_count??0}건</b></div><div><span>위치 확인</span><b>${p.verified_pct==null?'—':p.verified_pct+'%'}</b></div><div><span>이번 주 동네</span><b>${p.neighbors_week??0}명</b></div></div>
    <div class="row" style="margin-top:14px"><strong>내 기록</strong><span class="muted">최근</span></div><div class="rec-list">${recent}</div>
-   <div class="menu" style="margin-top:12px"><button data-open="account"><span>정기 관측 알림<small>${acct.notify?'켬':'끔'} · 다음 ${esc(nextScheduled().label)}</small></span></button><button data-open="account"><span>참여 코드<small>${esc(acct.code||'')}${p.legacy_count?` · 예전 기록 ${p.legacy_count}건`:''}</small></span></button></div>`};
+   <div class="menu" style="margin-top:12px"><button data-goto="account"><span>정기 관측 알림<small>${acct.notify?'켬':'끔'} · 다음 ${esc(nextScheduled().label)}</small></span></button><button data-goto="account"><span>참여 코드<small>${esc(acct.code||'')}${p.legacy_count?` · 예전 기록 ${p.legacy_count}건`:''}</small></span></button></div>`};
  },
  account(){
+  const guide=`<h3 class="menu-h">안내</h3><div class="menu">
+   <button id="replay-tut"><span>사용법 다시 보기<small>지도 위 4단계</small></span></button>
+   <button data-open="info"><span>자료 정보<small>기상청 · 주민 관측</small></span></button>
+   <button data-open="zones">구역 기준</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button>
+   <button data-doc="terms">이용약관</button>
+   ${acct.operator?'<button data-open="air">기기 USB 연결 (운영)</button>':''}
+   </div><p class="muted" id="model-status">${esc(data?.model?.ok?(data.model.status||''):`추정 보류 · ${data?.model?.reason||''}`)}</p>`;
+  if(!isMember())return {title:'계정',content:`
+   <div class="acard a-up d1"><b>로그인하면</b><span>냄새 기록 · 우리 집 기기 · 내 참여 기록</span><small>지도와 예보는 로그인 없이 그대로</small></div>
+   ${loginButtons('acct-login')}${guide}`};
   const p=window.appArgs?.participation||{};
-  const home=window.odorDevice?.homeZoneName?.();
-  return {title:'계정',back:true,content:`
+  const dev=window.odorDevice,home=dev?.homeZoneName?.();
+  return {title:'계정',content:`
    <div class="acct"><span class="avatar">${esc((acct.nickname||'·').slice(-2))}</span><span class="who"><b>${esc(acct.nickname||'')}</b><span class="muted">${esc(acct.provider_name||'')}로 로그인${acct.email?` · ${esc(acct.email)}`:''}${acct.joined?` · ${esc(acct.joined.slice(5).replace('-','.'))} 가입`:''}</span></span><button class="link-btn" id="nick-edit">닉네임 변경</button></div>
    <form id="nick-form" class="search-row" hidden><input id="nick-in" class="field" maxlength="20" value="${esc(acct.nickname||'')}"><button type="submit">저장</button></form>
    <div class="menu">
-    <button data-open="${window.odorDevice?.paired?'devhome':'pair'}"><span>우리 집<small>${esc(home||'기기 연결 후 설정')}</small></span></button>
-    <button id="code-row"><span>참여 코드<small>${esc(acct.code||'')}${p.legacy_count?` · 예전 기록 ${p.legacy_count}건`:''}</small></span></button>
+    <button data-open="devhome"><span>우리 집 기기<small>${dev?.paired?`공기청정기 1대${home?` · ${esc(home)}`:''}`:'연결된 기기 없음'}</small></span></button>
     <button id="notify-row"><span>정기 관측 알림<small>${acct.notify?'켬 · 앱을 열어 둔 동안 안내':'끔'}</small></span><i class="sw ${acct.notify?'on':''}"></i></button>
-    <button id="replay-tut"><span>사용법 다시 보기<small>4장</small></span></button>
-    <button id="logout" class="plain">로그아웃</button>
-    <button id="withdraw" class="plain danger"><span>탈퇴<small>기록은 익명으로 남음</small></span></button>
-   </div><p class="dev-msg" role="status" id="acct-msg">${esc(acct.notice||'')}</p>`};
- },
- help(){
-  const dev=window.odorDevice,paired=dev?.paired;
-  return {title:'안내',content:`<div class="menu">
-   <button id="help-tut"><span>사용법<small>4장</small></span></button>
-   <button data-open="devhome"><span>우리 집 기기<small>${paired?'공기청정기 1대':'연결된 기기 없음'}</small></span></button>
-   <button data-open="info"><span>자료 정보<small>기상청 · 주민 관측</small></span></button>
-   <button data-open="zones">구역 기준</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button>
-   <button data-open="account"><span>계정<small>${esc(acct.provider_name||'')} · ${esc(acct.nickname||'')}</small></span></button>
-   ${acct.operator?'<button data-open="air">기기 USB 연결 (운영)</button>':''}
-   </div><p class="muted" id="model-status">${esc(data?.model?.ok?(data.model.status||''):`추정 보류 · ${data?.model?.reason||''}`)}</p>`};
+    <button id="code-row"><span>참여 코드<small>${esc(acct.code||'')}${p.legacy_count?` · 예전 기록 ${p.legacy_count}건`:''}</small></span></button>
+   </div>
+   ${guide}
+   <div class="menu"><button id="logout" class="plain">로그아웃</button><button id="withdraw" class="plain danger"><span>탈퇴<small>기록은 익명으로 남음</small></span></button></div>
+   <p class="dev-msg" role="status" id="acct-msg">${esc(acct.notice||'')}</p>`};
  },
  devhome(){
   const dev=window.odorDevice;
@@ -285,14 +346,16 @@ const panels={
 function bindPanel(panel){
  const root=$('panel-content');
  if(panel==='account'){
+  $('replay-tut').onclick=startCoach;
+  root.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>openDoc(b.dataset.doc));
+  if(!isMember()){bindLoginButtons(root,'acct-login-msg');return;}
   $('nick-edit').onclick=()=>{$('nick-form').hidden=!$('nick-form').hidden;$('nick-in').focus();};
   $('nick-form').onsubmit=e=>{e.preventDefault();const v=$('nick-in').value.trim();if(v.length<2)return;authCmd({op:'nickname',value:v});$('acct-msg').textContent='저장 중';};
   $('notify-row').onclick=()=>{authCmd({op:'notify',value:!acct.notify});};
   $('code-row').onclick=()=>{const c=prompt('예전에 쓰던 참여 코드(예: P01). 이 계정으로 기록을 이어 줍니다.','');if(c&&c.trim())authCmd({op:'link_code',code:c.trim().toUpperCase()});};
-  $('replay-tut').onclick=replayTutorial;
-  $('logout').onclick=()=>{stor.set(null);authCmd({op:'logout'});};
-  $('withdraw').onclick=()=>{if(confirm('탈퇴하면 계정 정보는 지우고, 기록은 익명으로 남습니다. 진행할까요?')){stor.set(null);authCmd({op:'withdraw'});}};
- }else if(panel==='help'){$('help-tut').onclick=replayTutorial;}
+  $('logout').onclick=()=>{stor.set(null);sess.set('');authCmd({op:'logout'});};
+  $('withdraw').onclick=()=>{if(confirm('탈퇴하면 계정 정보는 지우고, 기록은 익명으로 남습니다. 진행할까요?')){stor.set(null);sess.set('');authCmd({op:'withdraw'});}};
+ }else if(panel==='part'){root.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>setTab(b.dataset.goto));}
  else if(panel==='devhome'){window.odorDevice?.renderCard();}
 }
 // ------------------------------------------------------------------ 상단 '기기' 버튼
@@ -301,12 +364,17 @@ function renderDevBtn(){
  dot.hidden=!d;if(d)dot.className={solid:'g',outline:'b',warn:'r'}[d.pill]||'';
 }
 function bindShell(){
- $('dev-btn').onclick=()=>openPanel(window.odorDevice?.paired?'devhome':'devhome');
+ $('dev-btn').onclick=()=>openPanel('devhome');   // 로그인 전이면 map.js 관문이 로그인 시트를 연다
  $('rec-btn').onclick=openRecord;
- $('rec-dim').onclick=closeRecord;
+ $('rec-dim').onclick=()=>{if(rec?.step==='login')sess.set('');closeRecord();};
  $('sched-chip').onclick=openRecord;
+ $('coach-start').onclick=startCoach;
+ $('coach-dismiss').onclick=()=>{seen.set();renderCoachChip();};
+ $('coach-skip').onclick=()=>endCoach(true);
+ ['click','pointerdown','mousedown','touchstart','wheel'].forEach(t=>window.addEventListener(t,coachGuard,{capture:true,passive:false}));
+ window.addEventListener('resize',()=>placeCoach(coachTarget()));
  setInterval(renderChip,30000);
 }
 document.addEventListener('DOMContentLoaded',()=>{bindAuth();bindShell();setEmailMode('login');});
-window.odorApp={panels,bindPanel,applyAccount,applyRecordResult,renderChip,renderDevBtn,openRecord,get account(){return acct;},get record(){return rec;}};
+window.odorApp={panels,bindPanel,applyAccount,applyRecordResult,renderChip,renderDevBtn,openRecord,requireLogin,startCoach,get member(){return isMember();},get coachStep(){return coachStep;},get account(){return acct;},get record(){return rec;}};
 })();

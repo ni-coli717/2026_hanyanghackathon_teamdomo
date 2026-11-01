@@ -318,20 +318,15 @@ def main():
     state = st.session_state.get('map_state', {})
     handle_auth_command(state)
     account, user, profile, _ = account_state()
-    if account['status'] != 'ok' and st.query_params.get('preview') == '1' and setting('APP_ENV', 'cloud') == 'local':
-        # 로컬 전용 화면 미리보기(로그인 없이 지도 화면 확인): http://localhost:8501/?preview=1 · 기록은 저장하지 않는 코드
+    if account['status'] not in ('ok', 'tutorial') and st.query_params.get('preview') == '1' and setting('APP_ENV', 'cloud') == 'local':
+        # 로컬 전용 회원 화면 미리보기(로그인 없이 회원 화면 확인): http://localhost:8501/?preview=1 · 기록은 저장하지 않는 코드
         account = {'status': 'ok', 'provider': 'preview', 'provider_name': '미리보기', 'nickname': '미리보기', 'code': 'PREVIEW',
                    'email': '', 'joined': '', 'notify': False, 'operator': False, 'providers': account.get('providers', {})}
         profile = {'participant_code': 'PREVIEW'}
-    if account['status'] != 'ok':
-        # 로그인·가입·사용법 전에는 지도 자료를 보내지 않는다.
-        result = odor_map(payload=None, selection=None, initial_state=state, account=account, key='resident_map', default=None)
-        if result and result.get('sequence',0)>state.get('sequence',0):
-            st.session_state.map_state=result
-            st.rerun()
-        return
-    code = profile['participant_code']
-    if code != 'PREVIEW':
+    # 지도·예보는 로그인 없이 연다. 기록 저장·참여 요약만 회원(가입 마친 계정)일 때.
+    member = account['status'] in ('ok', 'tutorial') and profile is not None
+    code = profile['participant_code'] if member else None
+    if member and code != 'PREVIEW':
         handle_record_command(state, code)
     try:
         payload, predictions = map_payload(data_mode(), model_key())
@@ -343,7 +338,8 @@ def main():
     selection = resolve_selection(payload,state)
     device, link = device_state(payload, predictions, selection, state)
     st.session_state.device_sig = link.signature()
-    part = participation(code, profile.get('legacy_code'), st.session_state.get('record_version', 0)) if state.get('tab') in ('part',) or state.get('panel') == 'account' or st.session_state.get('record_result') else None
+    part = participation(code, profile.get('legacy_code'), st.session_state.get('record_version', 0)) \
+        if member and (state.get('tab') in ('part', 'account') or st.session_state.get('record_result')) else None
     result = odor_map(payload=payload, selection=selection, initial_state=state, device=device, account=account,
                       participation=part, record=st.session_state.get('record_result'),
                       recent=recent_reports(link.reports_saved + st.session_state.get('record_version', 0)), device_api=device_api(),

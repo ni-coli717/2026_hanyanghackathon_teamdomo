@@ -2,13 +2,15 @@
 // 코넥트 첫 화면. Native Streamlit component protocol. 추정값은 전부 Python(analysis_service)에서 오고 여기서는 보여주기만 한다.
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let data, state=null, map, tiles, zoneLayer, labelLayer, pin, accuracy, selection, timer=null, picking=false, rendered=false, tileFailures=0, locationRequest=0, arrowAngle=null;
+let data, state=null, map, tiles, zoneLayer, labelLayer, windLayer, windKey='', pastDays=[], pin, accuracy, selection, timer=null, picking=false, rendered=false, tileFailures=0, locationRequest=0, arrowAngle=null;
 const zonePolys={};   // 구역 면은 한 번 만들고 색만 바꾼다(색 전환 600ms)
 const emptyStat={n:0,detected:0,status:'자료 없음',type:'unknown',odor_evidence:false,median:null,pred:null,arrow:'none'};
 const LEVELS=['낮음','보통','높음'];
 const LEVEL_CLASS={'낮음':'low','보통':'mid','높음':'high'};
 const COLORS={low:'#1F7A4B',mid:'#8A5F00',high:'#BC3328',hold:'#5E6C74'};
-const TABS={now:'지금',forecast:'예보',part:'참여',help:'안내'};
+const TABS={now:'지금',forecast:'예보',part:'참여',account:'계정'};
+const SLOTS=['07:30','12:30','18:30','22:00'];   // 하루 4번 정기 관측
+const GATED_TABS=['part'],GATED_PANELS=['devhome','pair','device'];   // 로그인해야 열리는 곳
 const desktop=()=>window.matchMedia('(min-width:900px)').matches;   // 데스크톱: 왼쪽 패널, 시트 접힘 없음
 const post=(type,extra={})=>window.parent.postMessage({isStreamlitMessage:true,type,...extra},'*');
 function send(){
@@ -86,7 +88,18 @@ function drawZones(){
  pin.setLatLng(state.position).setIcon(L.divIcon({className:gps?'me-dot':'sel-dot',iconSize:gps?[14,14]:[12,12],iconAnchor:gps?[7,7]:[6,6]}));
  accuracy.setLatLng(state.position).setRadius(gps?Math.min(state.accuracy||60,200):0).setStyle({opacity:gps?1:0,fillOpacity:gps?.15:0});
 }
-// 바람 화살표: 바람이 가는 방향. 최단 호로 돈다 (359° -> 1° 은 2°).
+// 지도 위 바람 화살표: 구역 둘레에 작은 화살표를 고르게 깔고 모두 바람이 가는 쪽을 가리킨다. 약풍·자료 없음이면 숨긴다.
+function drawWind(w){
+ const key=!w||w.calm?'':`${w.to}`;
+ if(key===windKey)return;windKey=key;windLayer.clearLayers();
+ if(!key)return;
+ const b=L.latLngBounds(data.zones.flatMap(z=>z.ring)).pad(.35),sw=b.getSouthWest(),ne=b.getNorthEast(),rows=6,cols=5;
+ for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+  const lat=sw.lat+(ne.lat-sw.lat)*(r+.5)/rows,lon=sw.lng+(ne.lng-sw.lng)*(c+.5+(r%2?.25:-.25))/cols;
+  L.marker([lat,lon],{icon:L.divIcon({className:'wind-ar',html:`<svg viewBox="0 0 16 20" style="transform:rotate(${w.to}deg)"><path d="M8 18V3M3 8l5-5 5 5"/></svg>`,iconSize:[16,20],iconAnchor:[8,10]}),interactive:false,keyboard:false}).addTo(windLayer);
+ }
+}
+// 바람 버튼 화살표: 바람이 가는 방향(그림은 위쪽 기준). 최단 호로 돈다 (359° -> 1° 은 2°).
 function setArrow(deg){arrowAngle=arrowAngle===null?deg:arrowAngle+deltaAngle(((arrowAngle%360)+360)%360,deg);$('wind-arrow').style.transform=`rotate(${arrowAngle}deg)`;}
 // ------------------------------------------------------------------ 화면
 function render(){
@@ -123,7 +136,7 @@ function render(){
  bindZoneButtons($('now-zone-list'));
  $('view-now').hidden=state.tab!=='now'||!!state.panel;$('view-tab').hidden=!$('view-now').hidden;
  window.odorDevice?.renderCard();window.odorApp?.renderChip();window.odorApp?.renderDevBtn();
- drawZones();renderPanel();
+ drawZones();drawWind(w);renderPanel();
  requestAnimationFrame(()=>document.documentElement.style.setProperty('--sheet-h',`${$('sheet').offsetHeight}px`));
 }
 function zoneButtons(f,z){
@@ -131,8 +144,9 @@ function zoneButtons(f,z){
 }
 function bindZoneButtons(root){root.querySelectorAll('[data-zone]').forEach(b=>b.onclick=()=>{const zz=data.zones.find(x=>x.id===b.dataset.zone);if(zz){choose([zz.lat,zz.lon]);map.panTo([zz.lat,zz.lon]);}});}
 function rows(values){return '<dl>'+Object.entries(values).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')+'</dl>';}
-function openPanel(panel){state.panel=panel||'';if(panel)state.collapsed=false;render();send();}
-function setTab(tab){stop();state.tab=tab;state.panel='';if(tab!=='now')state.collapsed=false;render();send();}
+function needLogin(intent){const app=window.odorApp;if(!app||app.member)return false;app.requireLogin(intent);return true;}
+function openPanel(panel){if(GATED_PANELS.includes(panel)&&needLogin('device'))return;state.panel=panel||'';if(panel)state.collapsed=false;render();send();}
+function setTab(tab){if(GATED_TABS.includes(tab)&&needLogin(tab))return;stop();state.tab=tab;state.panel='';if(tab!=='now')state.collapsed=false;render();send();}
 function renderPanel(){
  if($('view-tab').hidden)return;
  const panel=state.panel,z=nearby(),f=frame(),s=stat(),w=windOf(f),pred=s.pred,forecast=isForecast(f);
@@ -181,14 +195,26 @@ function renderPanel(){
    +`<details><summary>자세히</summary><p>모델은 가능성만 추정하고, 켜기·끄기는 규칙이 정합니다. 기기는 받은 명령만 수행합니다.</p><p>켜기: 높음 ${d.streak?.[0]??2}회 연속 · 끄기: 낮음 ${d.streak?.[1]??2}회 연속 · 자료 없음은 판단 보류(직전 상태 유지)</p></details>`;
  }else if(state.tab==='forecast'){
   title='예보';
-  const li=latestIndex(),index=frameIndex(),ahead=data.frames.length-1-li;
-  const stale=f&&index===li&&(Date.now()-Date.parse(f.at)>3600000);
-  const mode=!f?'자료 없음':forecast?data.forecast?.label||'예보':index===li?(stale?'갱신 지연':'최신'):'지난 기록';
-  const zones=zoneButtons(f,z);
-  content=`<div class="timeline"><div class="row"><strong id="time-label">${esc(fmt(f?.at))}</strong><span class="mode ${forecast?'forecast':stale?'stale':''}" id="time-mode">${esc(mode)}</span></div>
-   <div class="tl-controls"><button id="previous" aria-label="이전 시각" ${index<=0?'disabled':''}>‹</button><input id="time-slider" type="range" min="0" max="${Math.max(0,data.frames.length-1)}" value="${Math.max(0,index)}" step="1" aria-label="시각" aria-valuetext="${esc(fmt(f?.at))} ${esc(mode)}" ${f?'':'disabled'}><button id="next" aria-label="다음 시각" ${index<0||index>=data.frames.length-1?'disabled':''}>›</button></div>
-   <div class="row"><span class="muted">${ahead>0?`예보 ~${esc(fmt(data.frames.at(-1).at))}`:'미래 자료 없음'}${w?` · ${esc(windText(w))}`:''}</span><button id="latest" class="chipbtn" ${index===li?'disabled':''}>최신</button></div></div>
-   <div class="zones">${zones}</div><p class="muted">구역을 누르면 지도와 ‘지금’ 탭이 그 구역 기준이 됩니다.</p>`;
+  const li=latestIndex(),index=frameIndex(),last=data.frames.length-1,ahead=last-li;
+  const view=state.fview||(index>=0&&index<li?'past':'ahead');
+  const seg=`<div class="fseg" role="tablist" aria-label="예보 보기"><span class="thumb" style="transform:translateX(${view==='past'?'100%':'0'})"></span><button role="tab" data-fview="ahead" aria-selected="${view==='ahead'}">앞으로</button><button role="tab" data-fview="past" aria-selected="${view==='past'}">지난 기록</button></div>`;
+  if(view==='ahead'){
+   const i=Math.max(li,index),fi=data.frames[i];
+   const stale=i===li&&fi&&(Date.now()-Date.parse(fi.at)>3600000);
+   const mode=!fi?'자료 없음':i===li?(stale?'갱신 지연':'지금'):data.forecast?.label||'예보';
+   content=seg+`<div class="timeline"><div class="row"><strong id="time-label">${esc(fmt(fi?.at))}</strong><span class="mode ${i>li?'forecast':stale?'stale':''}" id="time-mode">${esc(mode)}</span></div>
+    <div class="tl-controls"><button id="previous" aria-label="이전 시각" ${i<=li?'disabled':''}>‹</button><input id="time-slider" type="range" min="${li}" max="${Math.max(li,last)}" value="${i}" step="1" aria-label="예보 시각" aria-valuetext="${esc(fmt(fi?.at))} ${esc(mode)}" ${ahead>0?'':'disabled'}><button id="next" aria-label="다음 시각" ${i>=last?'disabled':''}>›</button></div>
+    <div class="row"><span class="muted">${ahead>0?`지금 ~ ${esc(fmt(data.frames.at(-1).at))}`:'미래 자료 없음'}${w?` · ${esc(windText(w))}`:''}</span><button id="latest" class="chipbtn" ${i===li?'disabled':''}>지금</button></div></div>`;
+  }else{
+   const days=[];data.frames.slice(0,li+1).forEach((fr,k)=>{const p=parts(fr.at),d=`${p.year}-${p.month}-${p.day}`;let e=days.find(x=>x.d===d);if(!e)days.push(e={d,label:`${p.month}.${p.day} (${'일월화수목금토'[new Date(`${d}T12:00:00+09:00`).getDay()]})`,frames:{}});e.frames[`${p.hour}:${p.minute}`]=k;});
+   days.reverse();
+   const cur=data.frames[index>=0&&index<=li?index:li],cp=cur?parts(cur.at):null,cd=cp?`${cp.year}-${cp.month}-${cp.day}`:'',di=Math.max(0,days.findIndex(x=>x.d===cd)),day=days[di];
+   const chips=SLOTS.map(t=>{const k=day?.frames[t];return `<button data-frame="${k??''}" class="${k===index?'on':''}" ${k===undefined?'disabled':''}><b>${t}</b><span>${['아침','점심','저녁','밤'][SLOTS.indexOf(t)]}</span></button>`;}).join('');
+   content=seg+`<div class="past"><div class="day-row"><button id="day-prev" aria-label="전날" ${di>=days.length-1?'disabled':''}>‹</button><select id="day-pick" aria-label="날짜">${days.map((x,k)=>`<option value="${k}" ${k===di?'selected':''}>${esc(x.label)}</option>`).join('')}</select><button id="day-next" aria-label="다음날" ${di<=0?'disabled':''}>›</button></div>
+    <div class="slots">${chips}</div><div class="row"><span class="muted">주민 정기 관측 · ${esc(cur?fmt(cur.at):'자료 없음')}${w?` · ${esc(windText(w))}`:''}</span><span class="mode" id="time-mode">${index===li?'최신':'지난 기록'}</span></div></div>`;
+   pastDays=days;
+  }
+  content+=`<div class="zones">${zoneButtons(f,z)}</div><p class="muted">구역을 누르면 지도와 ‘지금’ 탭이 그 구역 기준이 됩니다.</p>`;
  }
  $('panel-title').textContent=title;$('panel-aside').innerHTML=aside;$('panel-content').innerHTML=content;
  if(dev)window.odorDevice.bind(panel);
@@ -200,6 +226,12 @@ function renderPanel(){
  if($('previous'))$('previous').onclick=()=>{stop();setTime(frameIndex()-1);};
  if($('next'))$('next').onclick=()=>{stop();setTime(frameIndex()+1);};
  if($('latest'))$('latest').onclick=()=>{stop();hideMessage();setTime(latestIndex());};
+ $('panel-content').querySelectorAll('[data-fview]').forEach(b=>b.onclick=()=>{stop();state.fview=b.dataset.fview;const li=latestIndex();if(b.dataset.fview==='ahead'||frameIndex()>li)setTime(li);else{render();send();}});
+ $('panel-content').querySelectorAll('[data-frame]').forEach(b=>b.onclick=()=>{if(b.dataset.frame!=='')setTime(Number(b.dataset.frame));});
+ const pickDay=k=>{const day=pastDays[k];if(!day)return;const cur=parts(frame()?.at||data.frames[latestIndex()].at),slot=`${cur.hour}:${cur.minute}`;const ks=Object.values(day.frames);setTime(day.frames[slot]??ks[ks.length-1]);};
+ if($('day-pick'))$('day-pick').onchange=e=>pickDay(Number(e.target.value));
+ if($('day-prev'))$('day-prev').onclick=()=>pickDay(Number($('day-pick').value)+1);
+ if($('day-next'))$('day-next').onclick=()=>pickDay(Number($('day-pick').value)-1);
  const tog=$('auto-toggle');if(tog)tog.onclick=()=>{state.auto_enabled=state.auto_enabled===false;render();send();};
  const port=$('device-port');if(port)port.onchange=()=>{state.device_port=port.value;};
  $('panel-content').querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{
@@ -232,7 +264,7 @@ function initialize(args){
  tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
  tiles.on('tileerror',()=>{tileFailures++;if(tileFailures>=2)$('tile-error').hidden=false;});
  tiles.on('tileload',()=>{if(tileFailures===0)$('tile-error').hidden=true;});
- zoneLayer=L.layerGroup().addTo(map);labelLayer=L.layerGroup().addTo(map);
+ zoneLayer=L.layerGroup().addTo(map);windLayer=L.layerGroup().addTo(map);labelLayer=L.layerGroup().addTo(map);
  accuracy=L.circle(state.position,{radius:0,color:'#0A6A85',weight:0,fillColor:'#0A6A85',fillOpacity:0,interactive:false}).addTo(map);
  pin=L.marker(state.position,{icon:L.divIcon({className:'sel-dot',iconSize:[12,12],iconAnchor:[6,6]}),title:'기준 위치',zIndexOffset:1000,keyboard:false}).addTo(map).on('click',()=>openPanel('zone'));
  map.on('click',e=>{if(window.odorDevice?.pickingHome){window.odorDevice.homePicked(e.latlng);return;}if(picking)choose([e.latlng.lat,e.latlng.lng]);});
@@ -276,4 +308,4 @@ window.addEventListener('message',event=>{
 });
 post('streamlit:componentReady',{apiVersion:1});
 // Read-only diagnostics for browser regression tests.
-window.odorMap={get state(){return state;},get map(){return map;},get data(){return data;},get arrowAngle(){return arrowAngle;},deltaAngle,direction,direction8,todayLevel,sixHours,setTab,openPanel};
+window.odorMap={render:()=>{if(map)render();},get state(){return state;},get map(){return map;},get data(){return data;},get arrowAngle(){return arrowAngle;},deltaAngle,direction,direction8,todayLevel,sixHours,setTab,openPanel,setTime,expand,get windArrows(){return windLayer?windLayer.getLayers().length:0;}};
