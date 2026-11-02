@@ -102,10 +102,21 @@ void drawPage() {
 
 /* ---------------- 네트워크 ---------------- */
 void wifiEnsure() {
+  static uint32_t lastTry = 0; static bool scanned = false;
   if (WiFi.status() == WL_CONNECTED) return;
-  WiFi.mode(WIFI_STA); WiFi.begin(WIFI_SSID, WIFI_PASS);
-  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) { delay(250); digitalWrite(PIN_BOARD, i & 1); }
-  Serial.printf("wifi %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "FAIL");
+  if (lastTry && millis() - lastTry < 20000) return;      // 연결 시도 중에 begin 을 다시 부르면 'cannot set config'
+  lastTry = millis();
+  WiFi.mode(WIFI_STA); WiFi.disconnect();
+  if (!scanned) {                                         // 처음 한 번: 보이는 와이파이 목록(이름이 config.h 와 똑같은지 확인용)
+    scanned = true;
+    int n = WiFi.scanNetworks();
+    Serial.printf("wifi scan: %d\n", n);
+    for (int i = 0; i < n; i++) Serial.printf("  [%s] ch%d %ddBm\n", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+  }
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  for (int i = 0; i < 60 && WiFi.status() != WL_CONNECTED; i++) { delay(250); digitalWrite(PIN_BOARD, i & 1); }
+  Serial.printf("wifi [%s] %s (status %d)\n", WIFI_SSID,
+                WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "FAIL", (int)WiFi.status());
 }
 
 // Supabase RPC 호출. 성공하면 true, 응답 본문은 out 에.
