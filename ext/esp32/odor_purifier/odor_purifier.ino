@@ -226,13 +226,13 @@ void loop() {
   readButton();
   uint32_t now = millis();
   if (now - lastPoll >= POLL_MS) { lastPoll = now; poll(); }
-  if (linkAlive && now - lastOk > LINK_TIMEOUT) {        // 서버 무응답 → 안전 정지
+  if (linkAlive && millis() - lastOk > LINK_TIMEOUT) {   // 서버 무응답 → 안전 정지 (now 는 poll 전 시각이라 쓰면 언더플로)
     linkAlive = false;
     if (!manualMode) { fanOn = false; level = "HOLD"; }
     Serial.println("NO SIGNAL");
     applyState();
   }
-  if (linkAlive && (fanOn != reportedFan || reportedMode != (manualMode ? "manual" : "auto") || now - lastReport >= REPORT_MS)) report(nullptr);
+  if (linkAlive && (fanOn != reportedFan || reportedMode != (manualMode ? "manual" : "auto") || millis() - lastReport >= REPORT_MS)) report(nullptr);
   if (now - lastPage >= PAGE_MS) { lastPage = now; lcdPage ^= 1; drawPage(); }
   delay(20);
 }
