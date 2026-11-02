@@ -141,7 +141,7 @@ bool rpc(const char* name, JsonDocument& body, String& out) {
   http.addHeader("apikey", SUPABASE_ANON);
   if (String(SUPABASE_ANON).startsWith("eyJ")) http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON);
   int code = http.POST(payload);
-  out = (code > 0) ? http.getString() : "";
+  out = (code > 0 && code != 204) ? http.getString() : "";   // 204(본문 없음)에서 getString 은 끝없이 기다림
   http.end();
   if (code < 200 || code >= 300) { Serial.printf("%s fail %d %s\n", name, code, out.substring(0, 80).c_str()); return false; }
   return true;
