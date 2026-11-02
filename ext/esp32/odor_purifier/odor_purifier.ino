@@ -16,7 +16,8 @@
     - HOLD 면 직전 상태 유지. LINK_TIMEOUT 동안 서버 응답이 없으면 팬을 끄고 NO SIGNAL.
     - 버튼 짧게: 수동 켜기/끄기 → device_set(mode on/off, 2시간). 서버가 같은 값을 돌려주므로 앱에도 '수동'이 보인다.
       서버에 못 보내면 보드에서만 바꾸고 다음 폴링 때 서버 값으로 돌아간다.
-    - 버튼 길게(0.8초): 냄새 신고 → device_report note='button:smell' (device_status.note 에 남는다)
+    - 버튼 길게(0.8~3초 누르고 뗌): 냄새 신고 → device_report note='button:smell' (device_status.note 에 남는다)
+    - 버튼 3초 이상: 앱 연결 코드 6자리 발급(device_new_pair_code) → LCD 에 10분 표시. 앱 '공기청정기 연결'에 기기 번호와 함께 입력
     - 상태 변화 때와 60초마다 device_report(fan, mode, fw, rssi).
 
   라이브러리(Arduino IDE 라이브러리 관리자): ArduinoJson 7, (USE_LCD 면) LiquidCrystal I2C
@@ -46,6 +47,7 @@ static const uint32_t POLL_MS       = 20000;
 static const uint32_t REPORT_MS     = 60000;
 static const uint32_t LINK_TIMEOUT  = 5UL * 60 * 1000;   // 5분 무응답 → 안전 정지
 static const uint32_t LONG_PRESS_MS = 800;
+static const uint32_t PAIR_PRESS_MS = 3000;
 static const uint32_t DEBOUNCE_MS   = 50;
 static const uint32_t PAGE_MS       = 5000;
 
@@ -54,6 +56,7 @@ String command = "HOLD", level = "HOLD", wind = "NA", basis = "FCST";
 uint32_t lastPoll = 0, lastOk = 0, lastReport = 0, lastPage = 0;
 bool reportedFan = false; String reportedMode = "";
 int  lcdPage = 0;
+String pairCode = ""; uint32_t pairUntil = 0;   // 앱 연결 코드 표시 중이면 pairUntil > 0
 
 int  btnState = HIGH, btnLast = HIGH; uint32_t btnChanged = 0, pressStart = 0; bool pressHandled = false;
 
@@ -75,9 +78,16 @@ void applyState() {
   drawPage();
 }
 
+bool pairing() { return pairUntil && (int32_t)(pairUntil - millis()) > 0; }
+
 void drawPage() {
 #if USE_LCD
   lcd.clear();
+  if (pairing()) {
+    lcd.setCursor(0, 0); lcd.print("PAIR "); lcd.print(DEVICE_ID);
+    lcd.setCursor(0, 1); lcd.print("CODE "); lcd.print(pairCode.substring(0, 3)); lcd.print(" "); lcd.print(pairCode.substring(3));
+    return;
+  }
   if (!linkAlive && !manualMode) {
     lcd.setCursor(0, 0); lcd.print("NO SIGNAL");
     lcd.setCursor(0, 1); lcd.print(WiFi.status() == WL_CONNECTED ? "CHECK SERVER" : "CHECK WIFI");
@@ -182,25 +192,52 @@ void setManual(bool on) {
 }
 
 /* ---------------- 버튼 ---------------- */
+void requestPairCode() {
+#if USE_LCD
+  lcd.clear(); lcd.setCursor(0, 0); lcd.print("PAIR CODE..."); lcd.setCursor(0, 1); lcd.print(DEVICE_ID);
+#endif
+  JsonDocument body; String out;
+  if (rpc("device_new_pair_code", body, out)) {
+    out.replace("\"", ""); out.trim();
+    pairCode = out; pairUntil = millis() + 10UL * 60 * 1000;      // 서버 쪽 유효 시간과 같은 10분
+    Serial.printf("pair %s code %s (10 min)\n", DEVICE_ID, pairCode.c_str());
+  } else {
+    pairCode = ""; pairUntil = 0;
+#if USE_LCD
+    lcd.clear(); lcd.setCursor(0, 0); lcd.print("PAIR FAIL"); lcd.setCursor(0, 1); lcd.print("CHECK WIFI");
+    lastPage = millis();
+#endif
+    return;
+  }
+  drawPage();
+}
+
 void readButton() {
   int reading = digitalRead(PIN_BTN);
   if (reading != btnLast) { btnChanged = millis(); btnLast = reading; }
   if (millis() - btnChanged > DEBOUNCE_MS && reading != btnState) {
     btnState = reading;
     if (btnState == LOW) { pressStart = millis(); pressHandled = false; }
-    else if (!pressHandled) {                 // 짧게 누름 = 수동 토글
-      fanOn = !fanOn; manualMode = true; applyState();
-      setManual(fanOn); report(fanOn ? "button:on" : "button:off");
+    else if (!pressHandled) {
+      uint32_t held = millis() - pressStart;
+      if (pairing() && held < LONG_PRESS_MS) {              // 코드 표시 중 짧게 = 표시 닫기
+        pairUntil = 0; drawPage();
+      } else if (held >= LONG_PRESS_MS) {                    // 0.8~3초 = 냄새 신고
+        report("button:smell");
+#if USE_LCD
+        lcd.clear(); lcd.setCursor(0, 0); lcd.print("REPORT SENT"); lcd.setCursor(0, 1); lcd.print("THANK YOU");
+        lastPage = millis();
+#endif
+        Serial.println("smell reported");
+      } else {                                               // 짧게 = 수동 토글
+        fanOn = !fanOn; manualMode = true; applyState();
+        setManual(fanOn); report(fanOn ? "button:on" : "button:off");
+      }
       pressHandled = true;
     }
   }
-  if (btnState == LOW && !pressHandled && millis() - pressStart > LONG_PRESS_MS) {   // 길게 = 냄새 신고
-    report("button:smell"); pressHandled = true;
-#if USE_LCD
-    lcd.clear(); lcd.setCursor(0, 0); lcd.print("REPORT SENT"); lcd.setCursor(0, 1); lcd.print("THANK YOU");
-    lastPage = millis();
-#endif
-    Serial.println("smell reported");
+  if (btnState == LOW && !pressHandled && millis() - pressStart > PAIR_PRESS_MS) {   // 3초 = 앱 연결 코드
+    pressHandled = true; requestPairCode();
   }
 }
 
