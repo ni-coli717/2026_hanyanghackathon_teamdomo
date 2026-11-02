@@ -34,6 +34,9 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #endif
 
 #define PIN_FAN    26
+#ifndef FAN_OPEN_DRAIN
+#define FAN_OPEN_DRAIN 0   // 1 = 끌 때 핀을 놓아 둠(입력), 켤 때만 LOW. 3.3V HIGH 로 안 꺼지는 LOW 트리거 릴레이용
+#endif
 #define PIN_GREEN  27
 #define PIN_RED    25
 #define PIN_BTN    33
@@ -55,8 +58,17 @@ int  lcdPage = 0;
 int  btnState = HIGH, btnLast = HIGH; uint32_t btnChanged = 0, pressStart = 0; bool pressHandled = false;
 
 /* ---------------- 출력 ---------------- */
+void fanPin(bool on) {
+#if FAN_OPEN_DRAIN
+  if (on) { digitalWrite(PIN_FAN, LOW); pinMode(PIN_FAN, OUTPUT); digitalWrite(PIN_FAN, LOW); }
+  else    { pinMode(PIN_FAN, INPUT); }            // 릴레이 모듈 쪽 풀업이 IN 을 올려 꺼짐
+#else
+  digitalWrite(PIN_FAN, (on != (bool)FAN_ACTIVE_LOW) ? HIGH : LOW);
+#endif
+}
+
 void applyState() {
-  digitalWrite(PIN_FAN, (fanOn != (bool)FAN_ACTIVE_LOW) ? HIGH : LOW);
+  fanPin(fanOn);
   digitalWrite(PIN_GREEN, fanOn ? HIGH : LOW);
   digitalWrite(PIN_RED,   fanOn ? LOW  : HIGH);
   digitalWrite(PIN_BOARD, fanOn ? HIGH : LOW);
@@ -184,7 +196,11 @@ void readButton() {
 /* ---------------- 메인 ---------------- */
 void setup() {
   Serial.begin(115200);
+#if FAN_OPEN_DRAIN
+  pinMode(PIN_FAN, INPUT);
+#else
   digitalWrite(PIN_FAN, FAN_ACTIVE_LOW ? HIGH : LOW); pinMode(PIN_FAN, OUTPUT); digitalWrite(PIN_FAN, FAN_ACTIVE_LOW ? HIGH : LOW);
+#endif
   pinMode(PIN_GREEN, OUTPUT); pinMode(PIN_RED, OUTPUT); pinMode(PIN_BOARD, OUTPUT); pinMode(PIN_BTN, INPUT_PULLUP);
 #if USE_LCD
   Wire.begin(21, 22); lcd.init(); lcd.backlight();

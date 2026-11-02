@@ -9,3 +9,4 @@
 #define FW_VERSION     "esp32-purifier-1"
 #define USE_LCD        0        // I2C 16x2 LCD(0x27) 를 달았으면 1
 #define FAN_ACTIVE_LOW 0        // 릴레이/팬 모듈이 LOW 에서 도는 제품이면 1
+#define FAN_OPEN_DRAIN 0        // LOW 트리거 릴레이가 3.3V 로 안 꺼지면 1 (이때 FAN_ACTIVE_LOW 는 무시)
