@@ -83,6 +83,7 @@ bool pairing() { return pairUntil && (int32_t)(pairUntil - millis()) > 0; }
 void drawPage() {
 #if USE_LCD
   lcd.clear();
+  { static uint32_t lcdInitAt = 0; if (millis() - lcdInitAt > 30000) { lcdInitAt = millis(); lcd.init(); lcd.backlight(); lcd.clear(); } }   // 30초마다 LCD 다시 초기화(전원 흔들림·잡음으로 글자 깨짐 복구)
   if (pairing()) {
     lcd.setCursor(0, 0); lcd.print("PAIR "); lcd.print(DEVICE_ID);
     lcd.setCursor(0, 1); lcd.print("CODE "); lcd.print(pairCode.substring(0, 3)); lcd.print(" "); lcd.print(pairCode.substring(3));
