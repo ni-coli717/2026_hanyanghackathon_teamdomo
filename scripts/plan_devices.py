@@ -103,7 +103,7 @@ def log_weather_history(cfg: dict, now: pd.Timestamp) -> None:
         n += store.insert_weather(rows_from(call("getVilageFcst", key, base_date=bv.strftime("%Y%m%d"), base_time=bv.strftime("%H00"), nx=nx, ny=ny), "vilage_fcst", nx, ny, bv))
         print(f"기상 기록 {n}행 저장(weather_fcst)")
     except Exception as e:  # noqa: BLE001
-        print(f"기상 기록 실패(무시) · {e}")
+        print(f"::warning::기상 기록 실패(일정 계산은 계속) · {type(e).__name__}: {e}")
 
 
 def ts(v):

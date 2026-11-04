@@ -4,7 +4,10 @@ from datetime import datetime, timedelta
 import os
 from zoneinfo import ZoneInfo
 
-import streamlit as st
+try:
+    import streamlit as st
+except ImportError:  # GitHub Actions 등 Streamlit 없는 스크립트 환경: 환경변수만 쓴다
+    st = None
 
 
 KST = ZoneInfo("Asia/Seoul")

@@ -139,11 +139,18 @@ def _now_index(frames, wx, now=None):
         i = future[0]
     else:
         i = len(frames) - 1
-    if frames[i].get('kind') == 'forecast' and wx is not None and not wx.empty:
-        wind, basis = _wind_at(wx, now)
+    f = frames[i]
+    if (f.get('kind') == 'forecast' or not f.get('wind')) and wx is not None and not wx.empty:
+        wind, basis = _wind_at(wx, now)            # 1순위: 지난 1시간 안의 기상청 실황
         if wind:
-            frames[i]['wind'] = wind
-            frames[i]['basis'] = '기상청 실황'
+            f['wind'] = wind
+            f['basis'] = '기상청 실황'
+    if not f.get('wind'):                          # 2순위: 가장 가까운 예보 프레임의 바람을 빌린다
+        fc = [k for k, g in enumerate(frames) if g.get('kind') == 'forecast' and g.get('wind')]
+        if fc:
+            k = min(fc, key=lambda k: abs(ats[k] - now))
+            f['wind'] = frames[k]['wind']
+            f['basis'] = f"기상청 단기예보 · {ats[k]:%H:%M}"
     return i
 
 
