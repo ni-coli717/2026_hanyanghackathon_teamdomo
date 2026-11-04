@@ -26,3 +26,7 @@ restart_viewer.bat
 restart_device_sim.bat
 edit_cloud_secrets.bat
 ext/esp32/odor_purifier/config.h
+
+# 제출 서류(동의서 등 개인정보 포함) · 절대 커밋 금지
+솦동행/
+Claude outputs/

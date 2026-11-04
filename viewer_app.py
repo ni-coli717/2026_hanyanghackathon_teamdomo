@@ -303,6 +303,20 @@ def main():
         # 로컬 전용 연결 점검(키는 출력하지 않는다): http://localhost:8501/?diag=db
         from scripts.db_check import run_checks
         st.code('\n'.join(run_checks())); return
+    if st.query_params.get('diag') == 'wx':
+        # 기상 연결 점검(비밀값 없음): weather_fcst 누적 행 수·최신 시각, 지도 기본 프레임
+        import traceback
+        from core.public_data import weather_history
+        try:
+            wx = weather_history(days=7)
+            st.code(f'weather_history rows={len(wx)} last={wx.weather_at.max() if len(wx) else None}')
+            payload, _ = map_payload(data_mode(), model_key())
+            f = payload['frames'][payload['latest_index']] if payload['frames'] else {}
+            st.code(f"frames={len(payload['frames'])} latest_index={payload['latest_index']} at={f.get('at')} kind={f.get('kind')} wind={f.get('wind')} basis={f.get('basis')}")
+            st.code('forecast: ' + repr(payload.get('forecast'))[:400])
+        except Exception:
+            st.code(traceback.format_exc())
+        return
     if st.query_params.get('diag') == 'demo':
         # 시연 예보 연결 점검(비밀값 없음): Supabase demo_forecast 행과 그 결과
         import traceback

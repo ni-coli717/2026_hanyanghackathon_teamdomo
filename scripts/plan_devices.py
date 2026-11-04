@@ -85,6 +85,27 @@ def demo_weather(now: pd.Timestamp) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def log_weather_history(cfg: dict, now: pd.Timestamp) -> None:
+    """기상청 실황(getUltraSrtNcst)과 받은 단기예보를 Supabase weather_fcst 에 누적한다(중복은 무시).
+    앱의 지도는 이 표에서 지난 시각의 바람을 찾는다(core/public_data.weather_history). 실패해도 일정 계산은 계속한다."""
+    try:
+        from core.sensor_store import SharedSensorStore
+        from scripts.log_weather import call, rows_from
+        store = SharedSensorStore(cfg["url"], cfg["key"])
+        key, nx, ny = cfg["kma_key"], cfg["nx"], cfg["ny"]
+        kst_now = dt.datetime.now(KST)
+        n = 0
+        bt = (kst_now - dt.timedelta(minutes=45)).replace(minute=0, second=0, microsecond=0)
+        n += store.insert_weather(rows_from(call("getUltraSrtNcst", key, base_date=bt.strftime("%Y%m%d"), base_time=bt.strftime("%H00"), nx=nx, ny=ny), "ncst", nx, ny, bt))
+        hours = [2, 5, 8, 11, 14, 17, 20, 23]
+        h = max([x for x in hours if x <= kst_now.hour - (1 if kst_now.minute < 10 else 0)] or [23])
+        bv = (kst_now if h <= kst_now.hour else kst_now - dt.timedelta(days=1)).replace(hour=h, minute=0, second=0, microsecond=0)
+        n += store.insert_weather(rows_from(call("getVilageFcst", key, base_date=bv.strftime("%Y%m%d"), base_time=bv.strftime("%H00"), nx=nx, ny=ny), "vilage_fcst", nx, ny, bv))
+        print(f"기상 기록 {n}행 저장(weather_fcst)")
+    except Exception as e:  # noqa: BLE001
+        print(f"기상 기록 실패(무시) · {e}")
+
+
 def ts(v):
     return None if v is None else pd.Timestamp(v).tz_localize(KST).isoformat()
 
@@ -130,6 +151,8 @@ def main():
                     db.insert("device_log", [dict(device_id=d["device_id"], kind="plan", detail=f"예보 조회 실패 · HOLD · {str(e)[:120]}")])
             raise SystemExit(1)
         basis, issued = "kma", str(weather["source"].iloc[0]) if len(weather) else ""
+        if not a.dry_run:
+            log_weather_history(cfg, now)   # 지도가 지난 날들의 바람을 보여 줄 수 있게 실황·예보를 누적
     m = load_model()
     preds = predict_rows(weather, m)
     print(f"[{now:%Y-%m-%d %H:%M}] {basis} {issued} · 예보 {weather.window_start.min():%m-%d %H}~{weather.window_start.max():%m-%d %H}시")

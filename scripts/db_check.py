@@ -10,7 +10,7 @@ def run_checks():
         for mode in ('apikey', 'bearer'):
             h = {'apikey': k}
             if mode == 'bearer': h['Authorization'] = f'Bearer {k}'
-            for table in ('observations', 'profiles'):
+            for table in ('observations', 'profiles', 'weather_fcst'):
                 try:
                     r = requests.get(f'{url}/rest/v1/{table}', headers=h, params={'select': '*', 'limit': 1}, timeout=15)
                     out.append(f'{name:6} {mode:6} {table:12} {r.status_code} {r.text[:200]!r}')

@@ -108,7 +108,8 @@ class SharedSensorStore:
         if not url.startswith('https://') or not key:
             raise ValueError('database.url / database.key 설정이 필요합니다.')
         self.base = url.rstrip('/') + '/rest/v1/'
-        self.h = {'apikey': key, 'Authorization': f'Bearer {key}'}
+        # 새 형식 키(sb_secret_/sb_publishable_)는 Authorization 헤더에 넣으면 거절된다 → apikey 만. 예전 JWT 키만 Bearer 도.
+        self.h = {'apikey': key, **({'Authorization': f'Bearer {key}'} if key.startswith('eyJ') else {})}
 
     def _get(self, table, params):
         rows, start = [], 0

@@ -125,6 +125,28 @@ def outlook(frames, zone_ids, now):
     return result
 
 
+def _now_index(frames, wx, now=None):
+    """실제 서비스(live)의 기본 프레임 = 지금. 마지막 주민 관측이 며칠 전이어도 화면이 거기 멈추지 않게 한다.
+    - 지금 이전 90분 안의 프레임(정각 예보 또는 최근 관측)이 있으면 그것, 없으면 지금 이후 첫 예보, 둘 다 없으면 마지막 프레임.
+    - 고른 프레임이 예보이고 지난 1시간 안의 기상청 실황(weather_fcst ncst)이 있으면 바람은 실황으로 바꾼다."""
+    now = pd.Timestamp(now or now_kst()).tz_localize(None) if pd.Timestamp(now or now_kst()).tzinfo else pd.Timestamp(now or now_kst())
+    ats = [pd.Timestamp(f['at']).tz_convert('Asia/Seoul').tz_localize(None) for f in frames]
+    past = [i for i, a in enumerate(ats) if a <= now]
+    future = [i for i, a in enumerate(ats) if a > now]
+    if past and now - ats[past[-1]] <= pd.Timedelta(minutes=90):
+        i = past[-1]
+    elif future:
+        i = future[0]
+    else:
+        i = len(frames) - 1
+    if frames[i].get('kind') == 'forecast' and wx is not None and not wx.empty:
+        wind, basis = _wind_at(wx, now)
+        if wind:
+            frames[i]['wind'] = wind
+            frames[i]['basis'] = '기상청 실황'
+    return i
+
+
 def prepare_payload(reports, weather, zones, windows, demo, slots=None, predictions=None,
                     forecast=None, forecast_predictions=None, model_info=None, settings=None):
     """No participant codes, individual reports, p values or candidate scores reach the browser.
@@ -183,6 +205,8 @@ def prepare_payload(reports, weather, zones, windows, demo, slots=None, predicti
                      'zones': {z: dict(EMPTY_STATS) for z in zones.zone_id}}
             _attach(frame, index, settings)
             frames.append(frame)
+    if not demo and frames:
+        latest_index = _now_index(frames, wx)
     period = '—' if not times else f'{min(times):%Y.%m.%d}–{max(times):%Y.%m.%d}'
     basis_counts = weather['weather_basis'].map(BASIS_LABELS).value_counts() if 'weather_basis' in weather else pd.Series(dtype=int)
     weather_info = ' · '.join(f'{k} {v}건' for k, v in basis_counts.items()) if not basis_counts.empty else ('제공 파일' if demo else '미연결')
