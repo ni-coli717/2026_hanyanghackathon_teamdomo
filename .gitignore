@@ -30,3 +30,15 @@ ext/esp32/odor_purifier/config.h
 # 제출 서류(동의서 등 개인정보 포함) · 절대 커밋 금지
 솦동행/
 Claude outputs/
+
+# 시연 웹: 점검 도구 산출물 · 캡처
+.impeccable/
+demo/shots/
+demo/proposals/feedback_1111/
+
+# Claude Code 설치·스킬(개인 환경) · 저장소에 올리지 않음
+.claude/
+skills-lock.json
+install_claude_code.bat
+install_design_skills.bat
+run_claude_code.bat

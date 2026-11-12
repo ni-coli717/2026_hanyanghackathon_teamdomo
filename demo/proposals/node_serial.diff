@@ -1,0 +1,28 @@
+--- a/ext/esp32/odor_node/odor_node.ino
++++ b/ext/esp32/odor_node/odor_node.ino
+@@ -29,6 +29,7 @@
+ static const uint32_t SAMPLE_MS   = 10000;   // 10초마다 샘플
+ static const uint8_t  SAMPLES_PER_ROW = 6;   // 6개 평균 = 1분
+ static const size_t   BUF_MAX     = 360;     // 6시간
++static const uint32_t SERIAL_MS   = 1000;    // USB 시리얼로 MQ-137 원값을 1초마다 한 줄씩(시연 웹 그래프용, 전송과 무관)
+ 
+ Adafruit_SHT31 sht31;
+ Adafruit_SGP40 sgp40;
+@@ -40,6 +41,7 @@
+ uint32_t bootMs; uint32_t lastSample = 0; uint8_t nAcc = 0;
+ uint32_t accAdc = 0; int32_t accVoc = 0; float accRh = 0, accTc = 0; uint8_t nRh = 0, nVoc = 0;
+ uint16_t failStreak = 0;
++uint32_t lastSerial = 0;
+ 
+ void ledSet(bool on) { digitalWrite(PIN_LED, on ? HIGH : LOW); }
+ 
+@@ -126,6 +128,9 @@
+     lastSample = now; sample();
+     if (nAcc >= SAMPLES_PER_ROW) { pushRow(); flush(); }
+   }
++  if (now - lastSerial >= SERIAL_MS) {                    // 시연 웹(demo/)은 이 줄의 adc_mq137 을 읽는다
++    lastSerial = now; Serial.printf("{\"adc_mq137\":%u}\n", readMq());
++  }
+   bool wifi = WiFi.status() == WL_CONNECTED;
+   if (!wifi) ledSet((now / 500) & 1); else if (failStreak > 3) ledSet((now / 120) & 1); else ledSet(true);
+   delay(50);

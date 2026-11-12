@@ -82,7 +82,7 @@ function drawZones(){
   const s=f?.zones[z.id]||emptyStat,rep=window.appArgs.recent?.[z.id];
   const sub=level||(forecast?'예보 없음':s.status==='자료 없음'?'추정 보류':s.status);
   const html=`<b>${esc(z.name)}</b><i class="lv-${cls}">${esc(sub)}${rep?` · 제보 ${rep.count}`:''}</i>`;
-  L.marker([z.lat,z.lon],{icon:L.divIcon({className:'zone-label'+(sel?.id===z.id?' selected':''),html,iconSize:[120,36],iconAnchor:[60,18]}),interactive:false,keyboard:false}).addTo(labelLayer);
+  L.marker([z.lat,z.lon],{icon:L.divIcon({className:'zone-label'+(sel?.id===z.id?' selected':''),html,iconSize:[120,36],iconAnchor:[60,58]}),interactive:false,keyboard:false}).addTo(labelLayer);
  });
  const gps=state.position_kind==='gps';
  pin.setLatLng(state.position).setIcon(L.divIcon({className:gps?'me-dot':'sel-dot',iconSize:gps?[14,14]:[12,12],iconAnchor:gps?[7,7]:[6,6]}));

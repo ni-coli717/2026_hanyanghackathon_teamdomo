@@ -4,7 +4,7 @@ import streamlit as st
 from core.config import data_mode, nested_setting, now_kst, setting
 from core.public_data import dashboard, window_slots
 from core.map_data import prepare_payload, resolve_selection
-from core.map_component import odor_map
+from core.map_component import odor_map, demo_web
 from core import analysis_service as service
 from core.automation import make_rule
 from core.device import AppDeviceLink, basis_key
@@ -296,9 +296,12 @@ def main():
     .stMainBlockContainer,.block-container{padding:0!important;max-width:none!important}
     [data-testid="stVerticalBlock"]{gap:0!important}
     [data-stale="true"]{opacity:1!important}
-    iframe[title="core.map_component.odor_map"]{display:block;width:100%;height:100dvh;border:0}
+    iframe[title="core.map_component.odor_map"],iframe[title="core.map_component.demo_web"]{display:block;width:100%;height:100dvh;border:0}
     html,body,.stApp,[data-testid="stAppViewContainer"]{overflow:hidden}
     </style>''',unsafe_allow_html=True)
+    if st.query_params.get('demo') == '1':
+        # 시연 웹(demo/)만 화면 가득. 로그인·DB·기상청 호출 없음: 시연 웹은 자기 data.js 만 쓴다.
+        demo_web(key='demo_web', default=None); return
     if st.query_params.get('diag') == 'db' and setting('APP_ENV', 'cloud') == 'local':
         # 로컬 전용 연결 점검(키는 출력하지 않는다): http://localhost:8501/?diag=db
         from scripts.db_check import run_checks
