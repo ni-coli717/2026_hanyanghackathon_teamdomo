@@ -186,10 +186,6 @@ if not (OPEN_FROM <= now_kst <= OPEN_UNTIL):
             st.write("설문에 참여해 주셔서 고맙습니다.")
             st.write(USE_NOTICE)
         st.caption("지금은 응답을 받지 않습니다.")
-    if PRE_SURVEY_REVIEW:
-        with st.expander("자료 안내"):
-            st.write("실제 조사 전 설문 흐름과 분석 방법을 검토하는 페이지입니다. "
-                     "기간과 건수는 사전 검토용으로 구성한 자료를 기준으로 표시합니다.")
     st.stop()
 
 st.title("운양동 냄새 설문")
