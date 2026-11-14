@@ -7,6 +7,7 @@
 설정:  .streamlit/secrets.toml (secrets.toml.example 참고)
 """
 import csv
+import json
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -70,7 +71,7 @@ LOCAL_CSV = Path(__file__).with_name("responses_local.csv")
 # ---------------------------------------------------------------- 저장
 def sheet_configured() -> bool:
     try:
-        return "gcp_service_account" in st.secrets and "sheet_id" in st.secrets
+        return "sheet_id" in st.secrets and ("gcp_json" in st.secrets or "gcp_service_account" in st.secrets)
     except Exception:
         return False
 
@@ -79,7 +80,11 @@ def sheet_configured() -> bool:
 def open_sheet():
     import gspread
 
-    client = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
+    if "gcp_json" in st.secrets:  # JSON 키 파일 내용을 통째로 붙여넣은 경우
+        info = json.loads(st.secrets["gcp_json"], strict=False)
+    else:
+        info = dict(st.secrets["gcp_service_account"])
+    client = gspread.service_account_from_dict(info)
     ws = client.open_by_key(st.secrets["sheet_id"]).sheet1
     if not ws.row_values(1):  # 빈 시트면 머리글을 먼저 씀
         ws.append_row(HEADER, value_input_option="RAW")
