@@ -69,10 +69,10 @@ LOCAL_CSV = Path(__file__).with_name("responses_local.csv")
 
 KST = ZoneInfo("Asia/Seoul")
 # 응답 기간(한국 시간). 이 기간 밖에서는 설문 대신 안내 화면만 보입니다.
-OPEN_FROM = datetime(2026, 11, 2, 0, 0, 0, tzinfo=KST)
-OPEN_UNTIL = datetime(2026, 11, 8, 23, 59, 59, tzinfo=KST)
+OPEN_FROM = datetime(2026, 11, 7, 0, 0, 0, tzinfo=KST)
+OPEN_UNTIL = datetime(2026, 11, 13, 23, 59, 59, tzinfo=KST)
 # 응답이 쌓인 구글 시트. 값이 있으면 Secrets의 sheet_id 대신 이 시트를 씁니다.
-SHEET_ID = "1CtOqKl7FMpei_P_hLBVFGk_weydmeigk2DU2BjJ3RMY"
+SHEET_ID = "19F5stOEZYYvVa6ZyerSpZpczLqgW60zX7vJ-fqlBIv8"
 # 시연용 예시 데이터로 운영 중이면 True (안내 화면에 예시임을 밝히는 문구가 붙음)
 DEMO_NOTICE = True
 
