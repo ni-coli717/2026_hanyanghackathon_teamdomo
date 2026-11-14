@@ -67,11 +67,21 @@ Q11_OPTS = [
 SCALE = [1, 2, 3, 4, 5]
 LOCAL_CSV = Path(__file__).with_name("responses_local.csv")
 
+KST = ZoneInfo("Asia/Seoul")
+# 응답 기간(한국 시간). 이 기간 밖에서는 설문 대신 안내 화면만 보입니다.
+OPEN_FROM = datetime(2026, 11, 2, 0, 0, 0, tzinfo=KST)
+OPEN_UNTIL = datetime(2026, 11, 8, 23, 59, 59, tzinfo=KST)
+# 응답이 쌓인 구글 시트. 값이 있으면 Secrets의 sheet_id 대신 이 시트를 씁니다.
+SHEET_ID = "1CtOqKl7FMpei_P_hLBVFGk_weydmeigk2DU2BjJ3RMY"
+# 시연용 예시 데이터로 운영 중이면 True (안내 화면에 예시임을 밝히는 문구가 붙음)
+DEMO_NOTICE = True
+
 
 # ---------------------------------------------------------------- 저장
 def sheet_configured() -> bool:
     try:
-        return "sheet_id" in st.secrets and ("gcp_json" in st.secrets or "gcp_service_account" in st.secrets)
+        has_sheet = bool(SHEET_ID) or "sheet_id" in st.secrets
+        return has_sheet and ("gcp_json" in st.secrets or "gcp_service_account" in st.secrets)
     except Exception:
         return False
 
@@ -85,16 +95,25 @@ def open_sheet():
     else:
         info = dict(st.secrets["gcp_service_account"])
     client = gspread.service_account_from_dict(info)
-    ws = client.open_by_key(st.secrets["sheet_id"]).sheet1
-    if not ws.row_values(1):  # 빈 시트면 머리글을 먼저 씀
-        ws.append_row(HEADER, value_input_option="RAW")
-    return ws
+    return client.open_by_key(SHEET_ID or st.secrets["sheet_id"]).sheet1
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def response_count():
+    """시트에 쌓인 응답 수(머리글 제외). 읽지 못하면 None."""
+    try:
+        return max(len(open_sheet().col_values(1)) - 1, 0)
+    except Exception:
+        return None
 
 
 def save_row(row: list) -> None:
     if sheet_configured():
+        ws = open_sheet()
+        if not ws.row_values(1):  # 빈 시트면 머리글을 먼저 씀
+            ws.append_row(HEADER, value_input_option="RAW")
         # RAW: 응답이 '='로 시작해도 수식으로 실행되지 않게 글자 그대로 저장
-        open_sheet().append_row(row, value_input_option="RAW")
+        ws.append_row(row, value_input_option="RAW")
         return
     new_file = not LOCAL_CSV.exists()
     with LOCAL_CSV.open("a", newline="", encoding="utf-8-sig") as f:
@@ -129,6 +148,27 @@ st.set_page_config(page_title="운양동 냄새 설문", page_icon="📝", layou
 if st.session_state.get("done"):
     st.title("응답해 주셔서 고맙습니다")
     st.write("보내 주신 응답은 이름 없이 모아, 예보를 고치는 데만 씁니다.")
+    st.stop()
+
+now_kst = datetime.now(KST)
+if not (OPEN_FROM <= now_kst <= OPEN_UNTIL):
+    period = (f"{OPEN_FROM.year}년 {OPEN_FROM.month}월 {OPEN_FROM.day}일 ~ "
+              f"{OPEN_UNTIL.month}월 {OPEN_UNTIL.day}일")
+    if now_kst < OPEN_FROM:
+        st.title("설문 준비 중입니다")
+        st.write(f"응답 기간: {period}")
+    else:
+        st.title("설문이 마감되었습니다")
+        st.write(f"응답 기간: {period}")
+        n = response_count() if sheet_configured() else None
+        if n is not None:
+            st.metric("응답해 주신 분", f"{n}명")
+        st.write("참여해 주신 운양동 주민 여러분께 감사드립니다. "
+                 "보내 주신 응답은 이름 없이 모아 예보를 고치는 데 씁니다.")
+        st.caption("지금은 응답을 받지 않습니다.")
+    if DEMO_NOTICE:
+        st.warning("이 페이지는 시연용 예시입니다. 표시된 기간과 응답 수는 예시 데이터이며, "
+                   "실제 설문 결과가 아닙니다.")
     st.stop()
 
 st.title("운양동 냄새 설문")
