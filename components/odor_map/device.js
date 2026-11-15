@@ -90,7 +90,7 @@ function zoneFor(lat,lon){
 }
 function setHome(label,lat,lon){
  const z=zoneFor(lat,lon);
- if(!z){msg='관측 구역 밖 · 운양동 안에서 선택';results=[];renderPanel();return;}
+ if(!z){msg='관측 구역 밖 · 운양동 일대에서 선택';results=[];renderPanel();return;}
  cfg={...cfg,home:{label,lat,lon,zone:z.id}};save(cfg);results=[];
  setDevice({p_zone:toModel(z.id)},`${z.name} · 저장됨`);
 }

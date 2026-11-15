@@ -1,4 +1,4 @@
-"""(예비) 냄새 기록 앱 — 2026-10-27 부터 주민 기록은 본앱(viewer_app) 의 ＋기록 으로 받는다. 이 앱은 참여자 코드·PIN 으로 운영자가 대신 입력할 때만 쓴다.
+"""(예비) 악취 기록 앱 — 2026-10-27 부터 주민 기록은 본앱(viewer_app) 의 ＋기록 으로 받는다. 이 앱은 참여자 코드·PIN 으로 운영자가 대신 입력할 때만 쓴다.
 
 전체 화면 지도 + 아래에서 올라오는 제보 창.
 
@@ -18,6 +18,7 @@ from core.observations import build_observation, observation_repository
 from core.ui import CSS
 
 INTENSITY = {1: '1 · 약함', 2: '2 · 보통', 3: '3 · 심함'}
+JUDGMENT_LABEL = {'나요': '느껴져요', '안 나요': '안 느껴져요', '모르겠어요': '모르겠어요'}   # 화면 표시만. 저장·판단 값은 왼쪽 그대로
 APP_CSS = '''<style>
 .block-container{max-width:100%!important;padding:0 0 0 0!important}
 header[data-testid="stHeader"]{background:transparent}
@@ -56,7 +57,7 @@ def reset_form():
 def login():
     pins = participant_pins()
     st.markdown(CSS, unsafe_allow_html=True)
-    st.title('냄새 기록')
+    st.title('악취 기록')
     st.caption('제보할 자리에서 위치를 켜고 기록합니다. 위치는 구역 판정에만 쓰고 약 100 m 단위로만 저장됩니다.')
     with st.form('identity'):
         code = st.text_input('참여자 코드', placeholder='예: P01')
@@ -132,7 +133,7 @@ def report_sheet(repo, zone, loc, participant):
         if zone is None:
             return
         env = st.radio('어디에서 확인했나요?', ['실외', '실내'], index=None, key='environment', horizontal=True)
-        odor = st.radio('지금 냄새가 나나요?', ['나요', '안 나요', '모르겠어요'], index=None, key='judgment', horizontal=True)
+        odor = st.radio('지금 악취가 느껴지나요?', ['나요', '안 나요', '모르겠어요'], index=None, key='judgment', horizontal=True, format_func=JUDGMENT_LABEL.get)
         level = None
         if odor == '나요':
             level = st.radio('얼마나 심한가요?', [1, 2, 3], index=None, key='intensity', horizontal=True, format_func=lambda x: INTENSITY[x])
@@ -163,7 +164,7 @@ def report_sheet(repo, zone, loc, participant):
 
 # ------------------------------------------------------------------ 메인
 def main():
-    st.set_page_config(page_title='냄새 기록', page_icon='assets/logo.svg', layout='wide', initial_sidebar_state='collapsed')
+    st.set_page_config(page_title='악취 기록', page_icon='assets/logo.svg', layout='wide', initial_sidebar_state='collapsed')
     try:
         repo, notice = observation_repository()
     except Exception:
@@ -182,7 +183,7 @@ def main():
 
     with st.container(key='topbar'):
         c = st.columns([4, 2, 2])
-        c[0].markdown(f'**냄새 기록** · 참여자 {participant}')
+        c[0].markdown(f'**악취 기록** · 참여자 {participant}')
         if c[1].button('내 기록', use_container_width=True):
             st.session_state.sheet = 'mine'
         if c[2].button('로그아웃', use_container_width=True):
@@ -227,7 +228,7 @@ def main():
                     own = set(st.session_state.get('own_ids', []))
                     rows = [r for r in repo.get_observations_by_participant(participant) if r['observation_id'] in own]
                     for r in rows:
-                        label = '모르겠어요' if r['odor_detected'] is None else ('냄새 남' + (f" · 강도 {r['intensity']}" if r.get('intensity') else '') if r['odor_detected'] else '냄새 없음')
+                        label = '모르겠어요' if r['odor_detected'] is None else ('악취 발생' + (f" · 강도 {r['intensity']}" if r.get('intensity') else '') if r['odor_detected'] else '악취 없음')
                         chk = {'verified': '위치 확인', 'rejected': '위치 미확인 · 제외', 'unverified': 'GPS 없음'}.get(r.get('location_check'), '')
                         st.write(f'{pd.Timestamp(r["observed_at"]).tz_convert("Asia/Seoul"):%m/%d %H:%M} · {ZONE_PUBLIC_NAMES.get(r["zone_id"], r["zone_id"])} · {label} · {chk}')
                     if not rows: st.info('이 세션에서 제출한 기록이 없습니다.')

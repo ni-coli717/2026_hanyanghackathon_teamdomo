@@ -364,7 +364,7 @@ async function sceneModel(id){
   showCard({step:`${k+1} / ${hours.length}`,big:`${+h}시 · ${lv(levelAt(h,D.home_zone))}`,small:`점수 ${x.score.toFixed(2)}${why?' · '+why:''}`,target:{el:'over'},side:'left',dy:24});
   await pause(k<hours.length-1?2600:900,id);
  }
- showCard({big:'풍향·풍속·습도로<br>시간별 냄새 가능성 예측',
+ showCard({big:'풍향·풍속·습도로<br>시간별 악취 발생 가능성 예측',
   act:{button:'공기청정기 일정',onClick:next},target:{el:'over'},side:'left',dy:24});
 }
 
@@ -376,7 +376,7 @@ async function sceneDevice(id){
  await appEl('#device-card',id,e=>e.offsetHeight>40);
  await pause(1200,id);
  const at={target:{el:'timeline'},anchor:'#timeline .pt.on',side:'above'};
- await new Promise(res=>showCard({step:'1 / 2',big:`냄새 ${leadMin}분 전 가동 예약`,small:`${+peakH}시 높음 → ${hhmm(onAt)} 가동`,
+ await new Promise(res=>showCard({step:'1 / 2',big:`악취 유입 ${leadMin}분 전 가동 예약`,small:`${+peakH}시 높음 → ${hhmm(onAt)} 가동`,
   act:{button:`${hhmm(onAt)}으로`,onClick:res},...at}));
  alive(id);
  hideCard();
@@ -385,7 +385,7 @@ async function sceneDevice(id){
   act:{button:'주민 기록',onClick:next},...at});
 }
 
-// 장면 4 · 주민 기록: 다른 주민 기록이 들어오고(큰 시계) → ＋기록 → 나요 → 강도 → 저장 뒤 '다시 학습'
+// 장면 4 · 주민 기록: 다른 주민 기록이 들어오고(큰 시계) → ＋기록 → 있음 → 강도 → 저장 뒤 '다시 학습'
 async function sceneRecord(id){
  appTab('');
  if(now<mineAt){
@@ -396,10 +396,10 @@ async function sceneRecord(id){
  push();appTab('');
  if(recorded){afterRecordCard(id);return;}
  lastRecord=null;
- showCard({step:'1 / 3',big:'냄새 나면 주민이 직접 기록',small:'두 번 클릭',act:{text:'＋기록 클릭'},target:{app:'#rec-btn'},side:'below'});
+ showCard({step:'1 / 3',big:'악취를 느끼면 주민이 직접 기록',small:'두 번 클릭',act:{text:'＋기록 클릭'},target:{app:'#rec-btn'},side:'below'});
  await pause(400,id);await tapApp('#rec-btn',id,false);
  await appEl('[data-rec="yes"]',id,e=>!e.disabled);
- showCard({step:'2 / 3',big:'‘나요’ 클릭',target:{app:'[data-rec="yes"]'},side:'left'});
+ showCard({step:'2 / 3',big:'‘있음’ 클릭',target:{app:'[data-rec="yes"]'},side:'left'});
  const savedP=new Promise(res=>{onSaved=res;});
  await Promise.race([tapApp('[data-rec="yes"]',id,false),savedP]);
  if(!recorded&&!lastRecord){
@@ -660,7 +660,7 @@ new MutationObserver(()=>{clearInterval(mapTimer);if(!$('setup').hidden){mapStat
  const html=await (await fetch(base+'index.html',{cache:'no-store'})).text();
  frame.srcdoc=html.replace('<head>',`<head><base href="${base}"><script src="${new URL('shim.js?v=2',location.href).href}"><\/script>`);
 })();
-$('brand-day').textContent=`${Y}.${M}.${DD} · 운양동`;
+$('brand-day').textContent=`${Y}.${M}.${DD} · 김포한강신도시`;
 if(EMBED){document.querySelectorAll('#setup [data-act=fan],#setup [data-act=sensor],#fan-state,#sensor-state').forEach(e=>e.hidden=true);$('usb-note').hidden=false;$('map-state').hidden=true;}
 setClock();$('count').textContent=`1 / ${SCENES.length}`;$('scene-name').textContent=SCENES[0].name;
 window.__demo={get scene(){return i;},get cardAction(){return card?.act?.button||null;},get busy(){return !cardFn;}};   // 확인용(읽기만)

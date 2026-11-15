@@ -137,16 +137,16 @@ function bindAuth(){
 }
 function setEmailMode(m){emailMode=m;document.querySelectorAll('.tabs2 [role=tab]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.mode===m)));document.querySelector('.tabs2 .thumb').style.transform=m==='login'?'translateX(0)':'translateX(100%)';$('email-go').textContent=m==='login'?'로그인':'다음';$('em-pw').autocomplete=m==='login'?'current-password':'new-password';}
 const DOCS={
- terms:['이용약관','<p>코넥트는 김포 운양동 주민이 냄새를 기록하고 예보를 보는 참여형 서비스입니다.</p><p>기록은 연구·예보 개선과 지역 공유 자료로 쓰이며, 개인을 알 수 있는 형태로 공개하지 않습니다.</p><p>허위 기록·반복 기록은 집계에서 제외될 수 있습니다. 서비스는 예고 없이 바뀌거나 중단될 수 있습니다.</p>'],
+ terms:['이용약관','<p>코넥트는 김포한강신도시 주민이 악취를 기록하고 예보를 보는 참여형 서비스입니다.</p><p>기록은 연구·예보 개선과 지역 공유 자료로 쓰이며, 개인을 알 수 있는 형태로 공개하지 않습니다.</p><p>허위 기록·반복 기록은 집계에서 제외될 수 있습니다. 서비스는 예고 없이 바뀌거나 중단될 수 있습니다.</p>'],
  privacy:['개인정보 처리방침','<p><b>수집 항목</b> 로그인 계정 식별자, 이메일(가린 형태로 표시), 닉네임, 기록할 때의 위치(약 100 m 단위로 반올림), 기록 내용.</p><p><b>이용 목적</b> 기록 저장과 본인 확인, 구역 판정, 예보 계산.</p><p><b>보관</b> 계정 삭제를 요청하면 계정 정보는 지우고 기록은 익명으로 남습니다.</p><p><b>제3자</b> 우리 집 검색은 OpenStreetMap 에 검색어만 보냅니다. 그 밖에 외부로 보내지 않습니다.</p>'],
 };
 function openDoc(k){const d=DOCS[k];if(!d)return;$('doc-title').textContent=d[0];$('doc-body').innerHTML=d[1];if(!screen)prev='';showScreen('doc');}
 // ------------------------------------------------------------------ 사용법: 지도 위 4단계 · 밝힌 곳을 눌러야 다음
 const COACH=[
- {sel:'#head',h:'색 = 냄새 날 가능성',s:'카드를 누르면 6시간 예보'},
+ {sel:'#head',h:'색 = 악취 발생 가능성',s:'카드를 누르면 6시간 예보'},
  {sel:'#tabs [data-tab=forecast]',h:'예보 · 지난 기록',s:'시간대별 예보와 지난 관측'},
  {sel:'#wind-btn',h:'바람 방향',s:'화살표 = 바람이 가는 쪽'},
- {sel:'#rec-btn',h:'＋기록',s:'냄새 나면 두 번 눌러 기록'},
+ {sel:'#rec-btn',h:'＋기록',s:'악취를 느끼면 두 번 눌러 기록'},
 ];
 function startCoach(){
  if(!window.odorMap?.map)return;
@@ -245,7 +245,7 @@ function renderRecord(){
  const head=(title,close=true)=>`<div class="rec-head"><strong>${esc(title)}</strong><span class="muted">${esc(hm(new Date().toISOString()))}</span>${close?'<button class="x" data-rec="close" aria-label="닫기">✕</button>':''}</div>`;
  if(s==='locate'||s==='ask'){
   b.innerHTML=head('기록')+`<div class="rec-chip"><span>${chipText()}</span><span class="muted">${esc(modeText())}</span></div>
-   <h2 class="a-up d1">지금 냄새</h2>
+   <h2 class="a-up d1">지금 악취</h2>
    <div class="two big"><button class="dark a-pop d2" data-rec="yes" ${s==='locate'?'disabled':''}>있음</button><button class="a-pop d3" data-rec="no" ${s==='locate'?'disabled':''}>없음</button></div>
    <div class="rec-row a-up d4"><span>장소</span><div class="seg2" role="radiogroup" aria-label="장소"><span class="thumb" style="transform:translateX(${rec.context==='indoor'?'100%':'0'})"></span><button role="radio" aria-checked="${rec.context==='outdoor'}" data-ctx="outdoor">실외</button><button role="radio" aria-checked="${rec.context==='indoor'}" data-ctx="indoor">실내</button></div><button class="link-btn" data-rec="unsure" ${s==='locate'?'disabled':''}>모름</button></div>`;
  }else if(s==='unverified'){
@@ -320,7 +320,7 @@ const panels={
   const guide=`<h3 class="menu-h">안내</h3><div class="menu">
    <button id="replay-tut"><span>사용법 다시 보기<small>지도 위 4단계</small></span></button>
    <button data-open="info"><span>자료 정보<small>기상청 · 주민 관측</small></span></button>
-   <button data-open="zones">구역 기준</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 냄새</button><button data-open="privacy">위치 · 개인정보</button>
+   <button data-open="zones">구역 기준</button><button data-open="criteria">집계 기준</button><button data-open="flow">바람과 악취</button><button data-open="privacy">위치 · 개인정보</button>
    <button data-doc="terms">이용약관</button>
    ${acct.operator?'<button data-open="air">기기 USB 연결 (운영)</button>':''}
    </div><p class="muted" id="model-status">${esc(data?.model?.ok?(data.model.status||''):`추정 보류 · ${data?.model?.reason||''}`)}</p>`;
@@ -343,7 +343,7 @@ const panels={
  },
  devhome(){
   const dev=window.odorDevice;
-  if(!dev?.paired)return {title:'우리 집 기기',content:`<div class="dev-empty a-up d1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="#52636C" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="#52636C"/></svg><h3>연결된 기기 없음</h3><p>냄새 예보 시 자동 가동</p><button class="primary-btn" data-open="pair">연결하기</button></div>`};
+  if(!dev?.paired)return {title:'우리 집 기기',content:`<div class="dev-empty a-up d1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="#52636C" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="#52636C"/></svg><h3>연결된 기기 없음</h3><p>악취 예보 시 자동 가동</p><button class="primary-btn" data-open="pair">연결하기</button></div>`};
   const home=dev.homeZoneName?.();
   const eps=dev.info?.plan?.episodes||[];const now=Date.now();
   const rows=eps.slice(0,3).map(e=>`<div class="dev-ep"><span class="muted">${hm(e.on_at)}</span><b>${Date.parse(e.off_at)<now?'가동 끝':Date.parse(e.on_at)<=now?'가동 중':'가동 예정'}</b><span class="muted">${hm(e.odor_start)} ${esc(e.peak_level||'')} 예보 · ${hm(e.off_at)}까지</span></div>`).join('')||'<p class="muted">앞으로 가동 일정 없음</p>';

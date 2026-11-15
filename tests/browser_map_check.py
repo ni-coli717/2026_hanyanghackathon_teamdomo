@@ -57,7 +57,7 @@ def check():
             assert actual.evaluate('odorMap.data.zones.length') == 3
             assert actual.evaluate('odorMap.data.zones.every(z=>z.ring.length>=30)')
             assert actual.locator('path.leaflet-interactive').count() == 3            # three zone polygons, no arrows
-            expect(frame.locator('#head-label')).to_contain_text('오늘 냄새 날 가능성')
+            expect(frame.locator('#head-label')).to_contain_text('오늘 악취 발생 가능성')
             expect(frame.locator('#head-label')).to_contain_text('운양역')
             assert frame.locator('#level-word').inner_text() in ('낮음', '보통', '높음', '보류')
             text = actual.evaluate('document.body.innerText')
@@ -89,7 +89,7 @@ def check():
             go(frame, actual, '2026-09-11T22:00')
             assert actual.evaluate('document.querySelector("#wind-btn").classList.contains("calm")')
             frame.locator('#wind-btn').click()
-            expect(frame.locator('#panel-title')).to_have_text('바람과 냄새')
+            expect(frame.locator('#panel-title')).to_have_text('바람과 악취')
             expect(frame.locator('#panel-content')).to_contain_text('방향 보류')
             frame.locator('#back').click()
 

@@ -109,7 +109,7 @@ def render_header(sample_mode: bool) -> None:
     with left:
         st.markdown(logo_wordmark(), unsafe_allow_html=True)
     with right:
-        st.caption("운양동 · KST · 운영자 전용")
+        st.caption("김포한강신도시 · KST · 운영자 전용")
     if sample_mode:
         st.markdown('<div class="sample-banner">제공 시나리오(가상) 데이터 — 실제 주민 관측 결과가 아닙니다</div>', unsafe_allow_html=True)
 
@@ -121,7 +121,7 @@ def render_home(weather, windows, geometry, probability, method, wx_row, hint):
     active = hint["source_id"] if hint else None
     direction_copy = "무풍 — 방향 표시 보류" if hint is None else ("후보 간 구분 어려움" if hint["ambiguous"] else f'{hint["name"]}')
     prob_copy = "추정 보류" if probability is None or pd.isna(probability) else f"{probability:.0%} · {level}"
-    st.markdown(f'''<div class="hero"><div><div class="eyebrow">ODOR COMPASS · 현재 상태</div><h1>바람은 어디서<br/>냄새를 데려올까?</h1><div class="subtitle">Odor Compass — a resident-participatory odor diagnosis app</div><p class="hero-copy">주민 체감 기록과 기상 조건을 함께 읽어, 지금의 악취 감지 가능성과 가장 관련 높은 유입 방향을 조심스럽게 추정합니다.</p><div>{badge("예비 실험 · 미보정", "#667985")} {badge(method, LEVEL_COLORS[level])}</div></div>{compass_svg(wx_row.wd if wx_row is not None else None, wx_row.ws if wx_row is not None else None, geom, active)}</div>''', unsafe_allow_html=True)
+    st.markdown(f'''<div class="hero"><div><div class="eyebrow">ODOR COMPASS · 현재 상태</div><h1>바람은 어디서<br/>악취를 데려올까?</h1><div class="subtitle">Odor Compass — a resident-participatory odor diagnosis app</div><p class="hero-copy">주민 체감 기록과 기상 조건을 함께 읽어, 지금의 악취 감지 가능성과 가장 관련 높은 유입 방향을 조심스럽게 추정합니다.</p><div>{badge("예비 실험 · 미보정", "#667985")} {badge(method, LEVEL_COLORS[level])}</div></div>{compass_svg(wx_row.wd if wx_row is not None else None, wx_row.ws if wx_row is not None else None, geom, active)}</div>''', unsafe_allow_html=True)
     latest_note = "관측 없음 — 위험 낮음으로 해석하지 않습니다"
     latest_value = "관측 없음"
     if not windows.empty:
@@ -142,8 +142,8 @@ def render_home(weather, windows, geometry, probability, method, wx_row, hint):
     next_obs = min(x for x in candidates if x > now)
     st.info(f"다음 정시 관측: {next_obs:%H:%M} · 약 {int((next_obs-now).total_seconds()//60)}분 후")
     a, b = st.columns(2)
-    if a.button("냄새 기록하기", use_container_width=True, type="primary"):
-        st.session_state.page = "③ 냄새 기록"
+    if a.button("악취 기록하기", use_container_width=True, type="primary"):
+        st.session_state.page = "③ 악취 기록"
         st.rerun()
     if b.button("동네 지도 보기", use_container_width=True):
         st.session_state.page = "② 동네 지도"
@@ -190,7 +190,7 @@ def render_map(zones, sources, windows, wx_row, geometry, hint):
 
 def render_record(repo, sample_mode, zones):
     st.markdown('<div class="record-shell">', unsafe_allow_html=True)
-    st.markdown(section("냄새 기록", "밖에서 20초 안에 끝내는 주민 관측입니다. 판단 어려움은 감지율 집계에서 제외됩니다."), unsafe_allow_html=True)
+    st.markdown(section("악취 기록", "밖에서 20초 안에 끝내는 주민 관측입니다. 판단 어려움은 감지율 집계에서 제외됩니다."), unsafe_allow_html=True)
     query = st.query_params
     initial_code = str(query.get("r", st.session_state.get("observer_code", ""))).upper()
     zone_options = zones.zone_id.tolist() if not zones.empty else ["Z1", "Z2", "Z3"]
@@ -203,9 +203,9 @@ def render_record(repo, sample_mode, zones):
         minutes = min(abs(now.minute - 30), abs(now.minute + 30))
         default_mode = "정시 관측" if minutes <= 30 and now.hour in [7, 12, 18, 21] else "추가 신고"
         mode = st.radio("관측 유형", ["정시 관측", "추가 신고"], index=0 if default_mode == "정시 관측" else 1, horizontal=True)
-        judgment = st.radio("지금 냄새가 느껴지나요?", ["냄새 있음", "냄새 없음", "판단 어려움"], horizontal=True)
-        intensity = st.slider("체감 강도", 1, 5, 3, disabled=judgment != "냄새 있음")
-        odor_type = st.radio("냄새 유형", ["축산분뇨", "하수", "기타", "모름"], horizontal=True, disabled=judgment != "냄새 있음")
+        judgment = st.radio("지금 악취가 느껴지나요?", ["악취 있음", "악취 없음", "판단 어려움"], horizontal=True)
+        intensity = st.slider("체감 강도", 1, 5, 3, disabled=judgment != "악취 있음")
+        odor_type = st.radio("악취 종류", ["축산분뇨", "하수", "기타", "모름"], horizontal=True, disabled=judgment != "악취 있음")
         c, d = st.columns(2)
         environment = c.radio("관측 환경", ["실외", "실내"], horizontal=True)
         confidence = d.radio("확신도", ["낮음", "보통", "높음"], index=1, horizontal=True)
@@ -216,7 +216,7 @@ def render_record(repo, sample_mode, zones):
         if observer != "GUEST" and not (len(observer) == 3 and observer[0] == "R" and observer[1:].isdigit()):
             st.error("참여자 코드는 R01처럼 입력하거나 비워주세요.")
         else:
-            odor = 1 if judgment == "냄새 있음" else (0 if judgment == "냄새 없음" else None)
+            odor = 1 if judgment == "악취 있음" else (0 if judgment == "악취 없음" else None)
             now_naive = pd.Timestamp.now(tz="Asia/Seoul").tz_localize(None)
             row = {"report_id": new_id("R"), "observer_code": observer, "zone_id": zone, "observed_at": now_naive.isoformat(timespec="seconds"), "submitted_at": now_naive.isoformat(timespec="seconds"), "report_mode": "scheduled" if mode == "정시 관측" else "extra", "odor": odor, "intensity": intensity if odor == 1 else 0, "odor_type": odor_type if odor == 1 else ("없음" if odor == 0 else "모름"), "environment": "outdoor" if environment == "실외" else "indoor", "confidence": {"낮음":"low","보통":"mid","높음":"high"}[confidence], "saw_forecast": int(st.session_state.get("saw_forecast", False)), "memo": memo, "is_sample": int(sample_mode)}
             repo.insert("reports", row)
@@ -351,7 +351,7 @@ def render_device(repo, probability, level):
             st.caption("이 상태는 공기 개선 완료를 뜻하지 않습니다.")
             if hasattr(device,'close'): device.close()
     st.markdown(section("대응 후 평가", "기기 작동 기록은 실외 악취 학습 데이터와 분리됩니다."), unsafe_allow_html=True)
-    outcome = st.radio("10분 후 실내 냄새가 줄었나요?", ["평가 전", "줄었다", "비슷하다", "심해졌다"], horizontal=True)
+    outcome = st.radio("10분 후 실내 악취가 줄었나요?", ["평가 전", "줄었다", "비슷하다", "심해졌다"], horizontal=True)
     if st.button("평가 저장", disabled=outcome == "평가 전"):
         repo.insert("device_log", {"log_id":new_id("D"), "logged_at":now.tz_localize(None).isoformat(timespec="seconds"), "mode":"assessment", "command":None, "acknowledged":0, "risk_level":level, "gas_value":None, "outcome":outcome, "note":"실내 대응 후 평가"})
         st.toast("대응 후 평가가 별도 기록으로 저장되었습니다.", icon="✅")
@@ -613,7 +613,7 @@ st.session_state.page = page
 
 if page == "① 홈": render_home(weather, windows, geometry, probability, method, wx_row, hint)
 elif page == "② 동네 지도": render_map(zones, sources, windows, wx_row, geometry, hint)
-elif page == "③ 냄새 기록": render_record(repo, sample_mode, zones)
+elif page == "③ 악취 기록": render_record(repo, sample_mode, zones)
 elif page == "④ 분석·방향": render_analysis(reports, windows, sources)
 elif page == "⑤ AI 실험": render_ai(repo, windows, sample_mode)
 elif page == "⑥ 우리 집 대응": render_device(repo, probability, level)

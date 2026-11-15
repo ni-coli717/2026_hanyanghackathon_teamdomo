@@ -64,21 +64,21 @@ def test_no_odor_fast_path_and_reset(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
     assert next(b for b in app.button if b.label=='기록 저장').disabled
     radio(app,'어디에서 확인했나요?').set_value('실외').run()
-    radio(app,'지금 냄새가 나나요?').set_value('안 나요').run()
+    radio(app,'지금 악취가 느껴지나요?').set_value('안 나요').run()
     click(app,'기록 저장')
     assert app.success
     rows=LocalObservations(tmp_path/'resident.db').get_recent_observations()
     assert len(rows)==1 and rows[0]['odor_detected'] is False
     assert rows[0]['intensity']==0 and rows[0]['odor_type']=='없음' and rows[0]['location_check']=='unverified'
     click(app,'닫기'); click(app,'제보하기')
-    assert radio(app,'지금 냄새가 나나요?').value is None
+    assert radio(app,'지금 악취가 느껴지나요?').value is None
 
 
 @LEGACY
 def test_unknown_and_indoor(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
     radio(app,'어디에서 확인했나요?').set_value('실내').run()
-    radio(app,'지금 냄새가 나나요?').set_value('모르겠어요').run()
+    radio(app,'지금 악취가 느껴지나요?').set_value('모르겠어요').run()
     click(app,'기록 저장')
     row=LocalObservations(tmp_path/'resident.db').get_recent_observations()[0]
     assert row['odor_detected'] is None and row['context']=='indoor'
@@ -88,7 +88,7 @@ def test_unknown_and_indoor(monkeypatch,tmp_path):
 def test_yes_requires_intensity_1_to_3_and_no_type(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
     radio(app,'어디에서 확인했나요?').set_value('실외').run()
-    radio(app,'지금 냄새가 나나요?').set_value('나요').run()
+    radio(app,'지금 악취가 느껴지나요?').set_value('나요').run()
     assert next(b for b in app.button if b.label=='기록 저장').disabled
     assert radio(app,'얼마나 심한가요?').options==['1','2','3']
     radio(app,'얼마나 심한가요?').set_value(3).run()
@@ -101,7 +101,7 @@ def test_yes_requires_intensity_1_to_3_and_no_type(monkeypatch,tmp_path):
 def test_save_failure_keeps_form(monkeypatch,tmp_path):
     app=start_measurement(monkeypatch,tmp_path)
     radio(app,'어디에서 확인했나요?').set_value('실외').run()
-    radio(app,'지금 냄새가 나나요?').set_value('안 나요').run()
+    radio(app,'지금 악취가 느껴지나요?').set_value('안 나요').run()
     def fail(*args): raise RuntimeError('offline')
     with monkeypatch.context() as m:
         m.setattr(LocalObservations,'save_observation',fail)

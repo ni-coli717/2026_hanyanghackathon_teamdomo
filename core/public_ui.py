@@ -34,9 +34,9 @@ def header(title, demo):
 def participation():
     url = measurement_url()
     if url and urlparse(url).scheme in ('http','https'):
-        st.markdown(f'<a class="participate" href="{html.escape(url, quote=True)}" target="_blank" rel="noopener">냄새 기록 참여 →</a>', unsafe_allow_html=True)
+        st.markdown(f'<a class="participate" href="{html.escape(url, quote=True)}" target="_blank" rel="noopener">악취 기록 참여 →</a>', unsafe_allow_html=True)
     else:
-        st.button('냄새 기록 참여 · 연결 준비 중', disabled=True, use_container_width=True)
+        st.button('악취 기록 참여 · 연결 준비 중', disabled=True, use_container_width=True)
         st.caption('로컬 실행: python -m streamlit run measurement_app.py --server.port 8502')
 
 

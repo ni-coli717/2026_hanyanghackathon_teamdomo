@@ -42,7 +42,7 @@ function isForecast(f=frame()){return f?.kind==='forecast';}
 function stat(f=frame(),z=nearby()){return z?f?.zones[z.id]||emptyStat:emptyStat;}
 function levelOf(f,zoneId){const p=f?.zones?.[zoneId]?.pred;return p?.level&&LEVELS.includes(p.level)?p.level:null;}
 function maxLevel(levels){const ranks=levels.filter(Boolean).map(l=>LEVELS.indexOf(l));return ranks.length?LEVELS[Math.max(...ranks)]:null;}
-// '오늘 냄새 날 가능성' = 최신 관측부터 오늘 안의 예보까지 중 가장 높은 단계
+// '오늘 악취 발생 가능성' = 최신 관측부터 오늘 안의 예보까지 중 가장 높은 단계
 function todayLevel(zoneId){
  if(!zoneId||!data.frames.length)return null;
  const li=latestIndex(),today=data.now||new Date().toISOString();
@@ -65,7 +65,7 @@ function message(text){$('notice').textContent=text;$('notice').hidden=false;}
 function hideMessage(){$('notice').hidden=true;}
 function choose(position,kind='selected'){
  locationRequest++;
- if(!inside(position)){message('김포 밖 · 운양동에서 위치 선택');return false;}
+ if(!inside(position)){message('김포 밖 · 김포한강신도시에서 위치 선택');return false;}
  state.position=position;state.position_kind=kind;picking=false;$('pick').classList.remove('active');hideMessage();render();send();return true;
 }
 // ------------------------------------------------------------------ 지도
@@ -105,7 +105,7 @@ function setArrow(deg){arrowAngle=arrowAngle===null?deg:arrowAngle+deltaAngle(((
 function render(){
  const z=nearby(),f=frame(),latest=latestFrame(),w=windOf(f),index=frameIndex(),li=latestIndex(),forecast=isForecast(f);
  $('demo').hidden=!data.demo;
- $('header-at').textContent=latest?`운양동 · ${shortTime(latest.at)}`:'운양동';
+ $('header-at').textContent=latest?`김포한강신도시 · ${shortTime(latest.at)}`:'김포한강신도시';
  // 바람 버튼
  $('wind-btn').classList.toggle('calm',!w||w.calm);
  $('wind-name').textContent=w?(w.calm?'약풍':direction8(w.from)+'풍'):'—';
@@ -117,7 +117,7 @@ function render(){
  const level=atLatest?todayLevel(z?.id):levelOf(f,z?.id);
  const cls=LEVEL_CLASS[level]||'hold';
  $('level-word').textContent=level||(z?'보류':'—');$('level-word').className=cls;
- $('head-label').textContent=(atLatest?'오늘 냄새 날 가능성':`${fmt(f?.at)} ${forecast?'예보':'기록'}`)+(z?` · ${z.name}`:' · 관측 구역 밖');
+ $('head-label').textContent=(atLatest?'오늘 악취 발생 가능성':`${fmt(f?.at)} ${forecast?'예보':'기록'}`)+(z?` · ${z.name}`:' · 관측 구역 밖');
  $('head-sub').textContent=z?windText(w):'구역 선택 또는 내 위치 켜기';
  $('head').setAttribute('aria-expanded',String(!state.collapsed));
  // 앞으로 6시간
@@ -165,18 +165,18 @@ function renderPanel(){
  }else if(panel==='zones'){
   title='구역 기준';
   const list=(data.zones||[]).map(x=>`<li><b style="color:${x.color||'#12222B'}">${esc(x.name)}</b>${x.subtitle?` <span class="muted">${esc(x.subtitle)}</span>`:''}</li>`).join('');
-  content=`<p>운양동을 생활권과 지형으로 <b>세 구역</b>으로 나눴습니다. 2026년 6~9월 주민 정기 관측(하루 4회)에서 쓴 관측 구역과 같습니다.</p><ul class="zone-list">${list}</ul>`
+  content=`<p>김포한강신도시 운양동 일대를 생활권과 지형으로 <b>세 구역</b>으로 나눴습니다. 2026년 6~9월 주민 정기 관측(하루 4회)에서 쓴 관측 구역과 같습니다.</p><ul class="zone-list">${list}</ul>`
    +'<p>구역마다 <b>대표점</b> 하나를 두고, 지도의 면은 <b>가장 가까운 대표점에서 1.5 km 이내</b> 규칙으로 그렸습니다. 기록할 때 위치를 판정하는 규칙과 같아서 <b>면 안 = 그 구역</b>입니다.</p>'
    +'<p>예보와 감지율은 구역 단위입니다. 건물·골목 단위 예측이 아니며, 대표점은 임시값이라 실측 경계가 정해지면 바뀝니다.</p>';
  }else if(panel==='flow'){
-  title='바람과 냄새';
+  title='바람과 악취';
   content=rows({'바람':windText(w),'들어오는 쪽':w&&!w.calm?`${direction(w.from)}쪽 · ${w.from}°`:'방향 보류','나가는 쪽':w&&!w.calm?`${direction(w.to)}쪽 · ${w.to}°`:'방향 보류',
    '추정':pred?.level?`${pred.level}${pred.from_sector?` · ${pred.from_sector}쪽에서 유입`:''}`:'추정 보류','자료':forecast?`예보 · ${data.forecast?.label||''}`:(f?.basis||'—'),'기준 시각':fmt(f?.at)})
-   +'<p>북쪽에서 바람이 올 때, 습할 때 냄새 제보가 많았습니다. 바람이 발원지 쪽에서 마을로 불면 가능성이 올라갑니다.</p>';
+   +'<p>북쪽에서 바람이 올 때, 습할 때 악취 제보가 많았습니다. 바람이 발원지 쪽에서 마을로 불면 가능성이 올라갑니다.</p>';
  }else if(panel==='info'){
   title='자료 정보';content=rows(data.info)+`<p><a target="_blank" rel="noopener" href="https://github.com/southkorea/southkorea-maps">경계 출처 ↗</a></p>`;
  }else if(panel==='criteria'){
-  title='집계 기준';content='<p>정기·실외 관측 중 냄새 유무를 판단한 응답만 집계합니다. 판단 어려움, 실내, 추가 제보는 분모에서 제외합니다.</p><p>같은 참여자의 같은 구역·시간 기록은 마지막 응답을 사용합니다. 유효 응답 3명 미만은 자료 부족입니다.</p><p>추가 제보와 기기 버튼 제보는 감지율에 넣지 않고 ‘제보’로 따로 표시합니다.</p><p>구역 경계는 가장 가까운 대표점 기준 1.5 km 입니다. 실측 경계가 정해지면 바뀝니다.</p>';
+  title='집계 기준';content='<p>정기·실외 관측 중 악취 발생 여부를 판단한 응답만 집계합니다. 판단 어려움, 실내, 추가 제보는 분모에서 제외합니다.</p><p>같은 참여자의 같은 구역·시간 기록은 마지막 응답을 사용합니다. 유효 응답 3명 미만은 자료 부족입니다.</p><p>추가 제보와 기기 버튼 제보는 감지율에 넣지 않고 ‘제보’로 따로 표시합니다.</p><p>구역 경계는 가장 가까운 대표점 기준 1.5 km 입니다. 실측 경계가 정해지면 바뀝니다.</p>';
  }else if(panel==='privacy'){
   title='위치 · 개인정보';content='<p>우리 집 검색어는 OpenStreetMap 검색으로 보내고, 집 좌표는 이 브라우저에만 저장합니다. 서버에는 구역만 저장합니다.</p><p>내 위치는 버튼을 눌러 권한을 허용할 때만 확인합니다. 좌표는 조회 계산에만 쓰고 저장하지 않습니다.</p><p>2 km 이내의 가장 가까운 관측 구역을 기준으로 보여줍니다. 건물별 예측이 아닙니다.</p><p>지난 기록은 예보 탭에서 고른 과거 시각입니다. 최신 자료가 1시간 넘게 오래되면 갱신 지연입니다.</p>';
  }else if(panel==='air'){

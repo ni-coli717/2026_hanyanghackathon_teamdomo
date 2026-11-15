@@ -26,7 +26,7 @@ def check():
             assert not page.evaluate('document.documentElement.scrollWidth > window.innerWidth')
             page.get_by_text('실외',exact=True).click()
             page.get_by_role('button',name='다음',exact=True).click()
-            expect(page.get_by_text('2 · 지금 냄새가 느껴지나요?',exact=True)).to_be_visible()
+            expect(page.get_by_text('2 · 지금 악취가 느껴지나요?',exact=True)).to_be_visible()
             assert not page.get_by_role('radio',name='느껴짐',exact=True).is_checked()
             page.get_by_text('느껴지지 않음',exact=True).click()
             page.get_by_role('button',name='다음',exact=True).click()
