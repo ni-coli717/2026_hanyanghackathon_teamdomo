@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>코넥트 시연</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo.svg">
+<link rel="stylesheet" href="demo.css?v=12"></head>
+<body>
+<header id="bar">
+ <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#0A6A85"/><g transform="translate(13 12)" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4V36" stroke="#FFFFFF"/><path d="M32 4L14 26Q12 31 17 31H30" stroke="#E8603F"/></g></svg><strong>코넥트</strong><span id="brand-day"></span></div>
+ <strong id="scene-name"></strong>
+ <span class="grow"></span>
+ <div id="flow" role="img" aria-label="흐름: 입력(예보·주민 기록·센서) → 처리(모델) → 출력(지도·공기청정기), 주민 기록과 센서는 다시 학습에 쓰인다">
+  <span class="grp" style="left:0">입력</span><span class="grp" style="left:262px">처리</span><span class="grp" style="left:374px">출력</span>
+  <span data-node="forecast" style="left:0">예보</span><span data-node="record" style="left:62px">주민 기록</span><span data-node="sensor" style="left:150px">센서</span>
+  <span data-node="model" style="left:262px">모델</span><span data-node="map" style="left:374px">지도</span><span data-node="device" style="left:430px">공기청정기</span>
+  <svg class="arrow" width="34" height="12" viewBox="0 0 34 12" style="left:208px" aria-hidden="true"><path d="M1 6H31M26 2l5 4-5 4"/></svg>
+  <svg class="arrow" width="34" height="12" viewBox="0 0 34 12" style="left:322px" aria-hidden="true"><path d="M1 6H31M26 2l5 4-5 4"/></svg>
+  <svg class="back" width="230" height="20" viewBox="0 0 230 20" aria-hidden="true"><path d="M1 1V10Q1 14 5 14H186Q190 14 190 10V4M186 8l4-4 4 4"/></svg>
+  <span class="learn-label">다시 학습</span>
+ </div>
+ <time id="clock" aria-label="시연 시각">15:00</time>
+ <span id="count">1 / 6</span>
+</header>
+<main id="stage">
+ <iframe id="app" title="코넥트 실제 앱 화면"></iframe>
+ <section id="over" hidden></section>
+ <div id="bigclock" hidden aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="#fff" stroke="#12222B" stroke-width="3"/><line id="bc-hour" x1="32" y1="32" x2="32" y2="18" stroke="#12222B" stroke-width="4" stroke-linecap="round"/><line id="bc-min" x1="32" y1="32" x2="32" y2="9" stroke="#0A6A85" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="32" r="3" fill="#12222B"/></svg><time id="bc-time"></time></div>
+ <div id="timeline" hidden aria-label="공기청정기 시간선"></div>
+ <div id="card" hidden role="status" aria-live="polite"><i class="tail" aria-hidden="true"></i>
+  <div id="c-body"><div class="c-top"><span id="c-where"></span><span id="c-step"></span></div>
+   <div id="c-big"></div><div id="c-small"></div><div id="c-act" class="c-act"></div></div>
+ </div>
+ <div id="setup" hidden>
+  <strong>시연 설정</strong>
+  <button data-act="fan">공기청정기 USB 연결</button><span id="fan-state" class="muted">연결 안 됨</span>
+  <button data-act="sensor">센서 USB 연결</button><span id="sensor-state" class="muted">연결 안 됨</span>
+  <span id="usb-note" class="muted" hidden>USB 연결(공기청정기 · 센서): 노트북에서 직접 실행할 때만</span>
+  <label><input type="checkbox" id="practice"> 센서 연습 신호 <span class="muted">(가상 · 화면에 표시됨)</span></label>
+  <div class="speed" role="group" aria-label="속도"><span>속도</span><button data-speed="slow">느리게</button><button data-speed="normal">보통</button><button data-speed="fast">빠르게</button></div>
+  <span id="map-state" class="muted">지도 확인 중</span>
+  <button data-act="restart">처음부터</button>
+ </div>
+</main>
+<script src="data.js?v=4"></script>
+<script src="demo.js?v=12"></script>
+</body></html>

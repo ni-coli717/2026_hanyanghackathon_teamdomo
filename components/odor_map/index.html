@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>코넥트</title>
+<link rel="stylesheet" href="vendor/leaflet.css"><link rel="stylesheet" href="map.css?v=15"></head>
+<body>
+<!-- ============================== 계정 화면 (이메일 · 가입 · 문서) ============================== -->
+<div id="auth" hidden>
+ <section id="s-email" class="screen page" hidden>
+  <div class="page-head"><button class="back" data-back="close" aria-label="뒤로">‹</button><h1>이메일로 시작</h1></div>
+  <div class="page-body">
+   <div class="tabs2" role="tablist"><button role="tab" data-mode="login" aria-selected="true">로그인</button><button role="tab" data-mode="signup" aria-selected="false">가입</button><span class="thumb"></span></div>
+   <form id="email-form" autocomplete="on">
+    <label class="field-label" for="em-mail">이메일</label><input id="em-mail" class="field" type="email" autocomplete="username" inputmode="email" required>
+    <label class="field-label" for="em-pw">비밀번호</label><input id="em-pw" class="field" type="password" autocomplete="current-password" minlength="8" required>
+    <span class="hint">8자 이상</span>
+    <p id="email-msg" class="auth-msg" role="status"></p>
+    <button id="email-go" class="primary-btn" type="submit">다음</button>
+   </form>
+  </div>
+ </section>
+
+ <section id="s-signup" class="screen page" hidden>
+  <div class="page-head"><h1>가입</h1><span id="signup-via" class="muted"></span><button id="signup-later" class="link-btn later">나중에</button></div>
+  <div class="page-body">
+   <label class="field-label" for="su-nick">닉네임</label><input id="su-nick" class="field" maxlength="20" autocomplete="nickname">
+   <span class="hint">실명 대신 · 지도와 기록에 표시 안 됨</span>
+   <span class="field-label">동의</span>
+   <div class="consents">
+    <label class="all"><input type="checkbox" id="c-all">전체 동의</label>
+    <label><input type="checkbox" data-consent="terms">이용약관<em>필수</em><button type="button" class="see" data-doc="terms">보기</button></label>
+    <label><input type="checkbox" data-consent="privacy">개인정보 수집 · 이용<em>필수</em><button type="button" class="see" data-doc="privacy">보기</button></label>
+    <label><input type="checkbox" data-consent="location">위치정보 이용 (기록할 때만)<em>필수</em></label>
+    <label><input type="checkbox" data-consent="notify">정기 관측 알림<em class="opt">선택</em></label>
+   </div>
+   <button id="su-code-toggle" class="link-btn">기존 참여 코드 입력 ›</button>
+   <div id="su-code-row" hidden><label class="field-label" for="su-code">참여 코드</label><input id="su-code" class="field" placeholder="예: P01" autocapitalize="characters"><span class="hint">예전 기록을 이 계정으로 연결</span></div>
+   <p id="signup-msg" class="auth-msg" role="status"></p>
+   <button id="signup-go" class="primary-btn">가입 완료</button>
+  </div>
+ </section>
+
+ <section id="s-doc" class="screen page" hidden>
+  <div class="page-head"><button class="back" data-back="prev" aria-label="뒤로">‹</button><h1 id="doc-title"></h1></div>
+  <div class="page-body doc" id="doc-body"></div>
+ </section>
+</div>
+
+<!-- ============================== 본 화면 ============================== -->
+<main id="shell" hidden>
+ <div id="map" aria-label="운양동 지도. 구역을 누르면 그 구역 기준으로 보여줍니다."></div>
+
+ <header id="header" class="float"><strong class="logo"><svg class="logo-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#0A6A85"/><g transform="translate(13 12)" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4V36" stroke="#FFFFFF"/><path d="M32 4L14 26Q12 31 17 31H30" stroke="#E8603F"/></g></svg>코넥트</strong><span id="demo" class="chip" hidden>시연</span><span id="header-at" class="muted"></span>
+  <button id="dev-btn" class="devbtn" aria-label="우리 집 기기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7v9h-17z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="14.5" r="2.2" fill="currentColor"/></svg>기기<i id="dev-dot" hidden></i></button>
+ </header>
+ <button id="sched-chip" class="float schip" hidden><i></i>다음 정기 관측 <b></b></button>
+ <div id="coach-chip" class="cchip" hidden><button id="coach-start">사용법 보기</button><button id="coach-dismiss" aria-label="닫기">✕</button></div>
+
+ <div id="fabs">
+  <button id="wind-btn" class="float fab wind" aria-label="바람 방향 상세">
+   <svg viewBox="0 0 22 26" aria-hidden="true" id="wind-arrow"><path d="M11 24V4M3 11l8-8 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+   <b id="wind-name">—</b><span id="wind-speed"></span>
+  </button>
+  <button id="locate" class="float fab" aria-label="내 위치"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="#0A6A85"/><circle cx="12" cy="12" r="8.5" fill="none" stroke="#0A6A85" stroke-width="2"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="#0A6A85" stroke-width="2" stroke-linecap="round"/></svg></button>
+  <button id="zoom-in" class="float fab zoom" aria-label="확대">＋</button><button id="zoom-out" class="float fab zoom" aria-label="축소">−</button>
+  <button id="pick" class="float fab" aria-label="지도에서 위치 선택"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z" fill="none" stroke="#12222B" stroke-width="2"/><circle cx="12" cy="11" r="2.2" fill="#12222B"/></svg></button>
+ </div>
+
+ <div id="notice" class="float" role="status" hidden></div>
+ <div id="tile-error" class="float" role="alert" hidden><strong>지도 연결 실패</strong><span>인터넷 연결 확인</span><button id="retry">다시 시도</button></div>
+
+ <section id="sheet" class="collapsed" aria-label="냄새 정보">
+  <div id="grip" aria-hidden="true"><div class="handle"></div></div>
+  <div id="sheet-body">
+   <div id="view-now">
+    <button id="head" aria-expanded="false">
+     <strong id="level-word" class="hold">—</strong>
+     <span class="head-text"><span id="head-label" class="muted">오늘 냄새 날 가능성</span><span id="head-sub"></span></span>
+     <svg id="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 12l5-5 5 5" fill="none" stroke="#5E6C74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div id="now-more">
+     <div class="rule"></div>
+     <div class="row"><strong id="ahead-title">앞으로 6시간</strong><span id="peak" class="peak"></span></div>
+     <div id="bars" aria-label="시간별 냄새 가능성"></div>
+     <div id="now-zones"><div class="row"><strong>구역별</strong></div><div class="zones" id="now-zone-list"></div></div>
+     <div id="foot" class="foot"></div>
+    </div>
+   </div>
+   <div id="view-tab" hidden>
+    <div class="panel-head"><button id="back" aria-label="뒤로" hidden>‹</button><h2 id="panel-title"></h2><span id="panel-aside" class="muted"></span></div>
+    <div id="panel-content"></div>
+   </div>
+  </div>
+  <nav id="tabs" aria-label="메뉴">
+   <button data-tab="now" class="active"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6.5l2.5 5.5-2.5 5.5-2.5-5.5z" fill="currentColor"/></svg>지금</button>
+   <button data-tab="forecast"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h10a3 3 0 1 0-3-3"/><path d="M3 15h14a3 3 0 1 1-3 3"/><path d="M3 12h6"/></svg>예보</button>
+   <button id="rec-btn" class="rec" aria-label="냄새 기록"><span>＋</span>기록</button>
+   <button data-tab="part"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8.5 7h7M7.3 9.2l3.4 6.6M16.7 9.2l-3.4 6.6"/></svg>참여</button>
+   <button data-tab="account"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6"/></svg>계정</button>
+  </nav>
+ </section>
+
+ <!-- 사용법: 밝힌 곳을 눌러야 다음 -->
+ <div id="coach" hidden><div id="coach-hole"></div><div id="coach-tip" role="dialog" aria-live="polite"><div class="ct-top"><span id="coach-num" class="muted">사용법 1 / 4</span><button id="coach-skip">건너뛰기</button></div><strong id="coach-h"></strong><span id="coach-s"></span><div id="coach-dots" class="dots"></div></div></div>
+
+ <!-- 기록 시트 (＋ 기록) · 로그인 시트 -->
+ <div id="rec-dim" hidden></div>
+ <section id="rec" class="rsheet" aria-label="냄새 기록" hidden>
+  <div class="grip"><div class="handle"></div></div>
+  <div id="rec-body"></div>
+ </section>
+</main>
+<script src="vendor/leaflet.js"></script><script src="map.js?v=10"></script><script src="device.js?v=7"></script><script src="app.js?v=9"></script>
+</body></html>
