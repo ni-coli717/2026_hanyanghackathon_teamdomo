@@ -92,6 +92,36 @@ def evaluation(model) -> dict:
     return {'auc': float(auc.group(1)), 'events': int(ev.group(1)), 'file': name}
 
 
+def retrain_compare(ids: dict, geo: dict) -> dict:
+    """장면 6 · 다시 학습: 그날(DAY) 기록이 사건으로 묶인 결과 + 날짜로 자른 두 모델.
+    - 기록 → 사건: scripts/validate_reports.py 가 만든 events.csv(같은 구역 · EVENT_GAP_MIN 분 안 제보를 사건 1개로) 그대로.
+    - 이전 모델 = DAY 전날까지 사건, 새 모델 = DAY 까지 사건. 앱 재학습과 같은 odor_model.case_crossover.build_training · train.
+      자른 날 뒤의 창(대조 창 포함)은 학습에서 뺀다(그날 밤에는 없던 자료)."""
+    import csv
+    from odor_model.case_crossover import build_training, train
+    from scripts.validate_reports import EVENT_GAP_MIN
+    rep = {r['report_id']: r for r in csv.DictReader(open(ROOT / 'data/private/reports.csv', encoding='utf-8-sig'))}
+    day_events = []
+    for e in csv.DictReader(open(ROOT / 'data/private/events.csv', encoding='utf-8-sig')):
+        if e['start_at'][:10] != DAY or e['zone_id'] not in ids:
+            continue
+        recs = sorted(rep[i]['observed_time'][:5] for i in e['report_ids'].split(';'))
+        day_events.append({'zone': ids[e['zone_id']], 'start': e['start_at'][11:16], 'end': e['end_at'][11:16], 'records': recs})
+    df = build_training(STATION)
+
+    def fit(cut: str) -> dict:
+        d = df[df.window_start < pd.Timestamp(cut)]
+        d = d[d.groupby('set_id').label.transform(lambda s: (s == 1).sum() == 1 and (s == 0).sum() >= 1)]
+        m, ev = train(d, geo)
+        by = dict(zip(m.columns, m.coef_))
+        return {'until': (pd.Timestamp(cut) - pd.Timedelta(days=1)).strftime('%Y-%m-%d'), 'events': ev['n_events'],
+                'auc': round(ev['cv']['set_auc'], 3),
+                'groups': {g: round(float(sum(abs(by.get(c, 0.0)) for c in cols)), 3) for g, cols in GROUPS.items()}}
+    nxt = (pd.Timestamp(DAY) + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+    return {'gap_min': EVENT_GAP_MIN, 'day_events': day_events, 'before': fit(DAY), 'after': fit(nxt),
+            'note': '요인 값 = 묶음 안 표준화 계수 절댓값 합. AUC = 사건 단위 5겹 교차검증 set AUC'}
+
+
 def iso(t) -> str:
     return pd.Timestamp(t).strftime('%Y-%m-%dT%H:%M:%S') + KST
 
@@ -170,6 +200,7 @@ def main():
         'model': {'trained_on': model.get('trained_on', ''), 'status': model.get('status', ''), 'kind': model.get('model_kind', ''),
                   'station': str(model.get('station', '')), **evaluation(model)},
         'zone_map': {app: mid for mid, app in ids.items()},
+        'retrain': retrain_compare(ids, geo),
     }
     target = ROOT / 'demo/data.js'
     target.write_text('// 자동 생성: python -m demo.build_data · 손으로 고치지 않는다\nwindow.DEMO=' +
@@ -178,6 +209,8 @@ def main():
     print('wrote', target, f'{target.stat().st_size:,} bytes · frames {len(payload["frames"])} · episodes {len(episodes)}')
     for e in episodes:
         print(' episode', e)
+    rt = out['retrain']
+    print(' retrain', rt['day_events'], {k: (rt[k]['events'], rt[k]['auc'], rt[k]['groups']) for k in ('before', 'after')})
 
 
 if __name__ == '__main__':

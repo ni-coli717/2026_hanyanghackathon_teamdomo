@@ -50,7 +50,7 @@ const lv=(word)=>`<span class="lv-${LEVEL_CLASS[word]||'hold'}">${esc(word||'보
 
 // ------------------------------------------------------------------ 상태
 let i=0,now=T('15:00'),ready=false,position=D.record_point.slice(),mode='auto',manualUntil=null;
-let recorded=false,lastRecord=null,lastCmd=0,fanOn=null,pushedKey='',shownCounts={},runId=0,started=false;
+let holdApp=false,recorded=false,lastRecord=null,lastCmd=0,fanOn=null,pushedKey='',shownCounts={},runId=0,started=false;
 const frame=$('app'),W=()=>frame.contentWindow,doc=()=>{try{return W().document;}catch(e){return null;}};
 const CANCEL=Symbol('cancel');
 const alive=id=>{if(id!==runId)throw CANCEL;};
@@ -65,9 +65,9 @@ function recent(){
  return out;
 }
 function push(){
- if(!ready)return;
+ if(!ready||holdApp)return;
  const floor=Math.floor((now+9*3600000)/3600000)*3600000-9*3600000;
- const frames=D.payload.frames.filter(f=>Date.parse(f.at)>=floor);
+ const frames=D.payload.frames.filter(f=>Date.parse(f.at)>=floor);if(!frames.length)return;
  const payload={...D.payload,frames,latest_index:0,now:iso(now),outlook:D.outlook[hhmm(now).slice(0,2)]||{}};
  const rc=recent();
  const args={payload,selection:{position,at:frames[0].at,sequence:9e15},initial_state:{tab:'forecast',collapsed:false},
@@ -326,7 +326,8 @@ function go(n){
  if(n===0){recorded=false;lastRecord=null;mode='auto';manualUntil=null;shownCounts={};position=D.record_point.slice();}
  i=n;const s=SCENES[i];
  $('scene-name').textContent=s.name;$('count').textContent=`${i+1} / ${SCENES.length}`;
- stopOver();closeRecord();hint(null);hideCard();showTimeline(false);showBig(false);$('bigclock').hidden=true;updateFlow();$('flow').classList.remove('learn');
+ stopOver();closeRecord();hint(null);hideCard();showTimeline(false);showBig(false);$('bigclock').hidden=true;updateFlow();$('flow').classList.remove('learn','closed');holdApp=false;
+ $('brand-day').textContent=`${Y}.${M}.${DD} · 김포한강신도시`;
  s.run(id).catch(e=>{if(e!==CANCEL)console.error(e);});
 }
 const next=()=>go(i+1);
@@ -432,14 +433,107 @@ async function sceneSensor(id){
   act:{button:'다시 학습',onClick:next},target:{el:'over'},side:'left',dy:24});
 }
 
-// 장면 6 · 다시 학습: 4단계가 차례로(단계당 0.8초)
+// 장면 6 · 다시 학습 (누를 때마다 한 단계)
+// ① 그날 기록이 점이 되어 학습 자료로 옮겨 가고, 같은 사건 기록은 하나로 합쳐진다(events.csv 의 실제 묶음)
+// ② 이전 모델(전날까지) · 새 모델(그날까지)을 나란히 (build_data 가 실제로 학습한 값)
+// ③ 적용 → 흐름 지도의 출력 → 입력 고리가 켜지고 시계가 다음 날 15:00 으로 → 끝 화면(QR)
+// D.retrain 이 없으면(옛 data.js) 바로 끝 화면.
+const RT=D.retrain||null;
+const nextDay=new Date(Date.UTC(Y,M-1,DD+1));
+const auc2=v=>v.toFixed(2);
+const quiet=e=>{if(e!==CANCEL)console.error(e);};
 async function sceneLoop(id){
- showOver('loop');learnFlow();
- const big='실시간 주민 관측 기록 수집을<br>통한 모델 향상';
- showCard({big,target:{el:'over'},side:'left',dy:24});
+ const say=(o)=>showCard({target:{el:'over'},side:'left',dy:24,...o});
+ if(!RT){showOver('loop');learnFlow();say({big:'실시간 주민 관측 기록 수집을<br>통한 모델 향상'});
+  await tween(T('22:40'),600,id);alive(id);push();appTab('');await pause(4*800+400,id);
+  say({big:'실시간 주민 관측 기록 수집을<br>통한 모델 향상',act:{button:'처음부터',onClick:()=>go(0)}});return;}
+ const nRec=RT.day_events.reduce((a,e)=>a+e.records.length,0),nEv=RT.day_events.length;
+ const b=RT.before,a=RT.after,diff=+(a.auc-b.auc).toFixed(2);
+ // ① 기록 → 사건
+ showOver('retrain');
+ say({step:'1 / 3',big:'기록 → 사건',small:`같은 구역 · ${RT.gap_min}분 안 기록 = 사건 1개`});
  await tween(T('22:40'),600,id);alive(id);push();appTab('');
- await pause(4*800+400,id);
- showCard({big,act:{button:'처음부터',onClick:()=>go(0)},target:{el:'over'},side:'left',dy:24});
+ await pause(700,id);
+ await flyRecords(id);
+ say({step:'1 / 3',big:`기록 ${nRec}건 → 사건 ${nEv}개`,small:`학습 자료 사건 ${b.events} → ${a.events}`,
+  act:{button:'이전 · 새 모델 비교',onClick:()=>compareStep(id).catch(quiet)}});
+ // ② 이전 모델 · 새 모델
+ async function compareStep(id){
+  alive(id);drawCompare();
+  const verdict=Math.abs(diff)<0.03?'차이 작음':diff>0?'새 모델 AUC 높음':'새 모델 AUC 낮음';
+  say({step:'2 / 3',big:`AUC ${auc2(b.auc)} → ${auc2(a.auc)}`,small:`${verdict} → 사람이 비교 후 선택`});
+  await pause(1400,id);
+  say({step:'2 / 3',big:`AUC ${auc2(b.auc)} → ${auc2(a.auc)}`,small:`${verdict} → 사람이 비교 후 선택`,
+   act:{button:'새 모델 적용',onClick:()=>applyStep(id).catch(quiet)}});
+ }
+ // ③ 적용 → 고리 닫힘 → 다음 날 15:00
+ async function applyStep(id){
+  alive(id);
+  document.querySelector('#over .cmp .m.new')?.classList.add('chosen');document.querySelector('#over .cmp .m.old')?.classList.add('dim');
+  $('flow').classList.add('closed');
+  say({step:'3 / 3',big:'새 모델 → 내일 예보',small:'출력 → 입력 · 고리 닫힘'});
+  await pause(1600,id);
+  hideCard();holdApp=true;showBig(true);   // 다음 날 자료는 앱에 없음 → 지도는 그날 밤 그대로 두고 시계만
+  try{await tween(T('15:00')+86400000,3000,id);}finally{showBig(false);}
+  alive(id);
+  $('brand-day').textContent=`${nextDay.getUTCFullYear()}.${nextDay.getUTCMonth()+1}.${nextDay.getUTCDate()} · 김포한강신도시`;
+  say({step:'3 / 3',big:`${nextDay.getUTCMonth()+1}.${nextDay.getUTCDate()} 15:00 · 새 모델 예보`,small:`사건 ${a.events}개로 학습한 모델`,
+   act:{button:'마무리',onClick:()=>closingStep(id).catch(quiet)}});
+ }
+ async function closingStep(id){
+  alive(id);showOver('loop');
+  const big='실시간 주민 관측 기록 수집을<br>통한 모델 향상';
+  say({big});await pause(4*800+400,id);
+  say({big,act:{button:'처음부터',onClick:()=>go(0)}});
+ }
+}
+// ① 점이 왼쪽 기록 줄에서 오른쪽 학습 자료로. 같은 사건의 점은 같은 자리로 모여 하나가 된다.
+async function flyRecords(id){
+ const box=document.querySelector('#over .rt'),cnt=$('rt-count');if(!box)return;
+ const B=box.getBoundingClientRect();
+ for(const [k,e] of RT.day_events.entries()){
+  const slot=box.querySelector(`.ev[data-k="${k}"]`),S=slot.getBoundingClientRect();
+  const tx=S.left-B.left+14,ty=S.top-B.top+S.height/2;
+  const moves=e.records.map(t=>{
+   const row=box.querySelector(`.rec[data-k="${k}"][data-t="${t}"]`),dot=row.querySelector('.dot'),R=dot.getBoundingClientRect();
+   const fx=R.left-B.left+R.width/2,fy=R.top-B.top+R.height/2;
+   const f=document.createElement('i');f.className='fly';f.style.left=fx+'px';f.style.top=fy+'px';box.appendChild(f);
+   row.classList.add('gone');
+   const ms=dur(1100);
+   return f.animate([{transform:'translate(-50%,-50%)'},{transform:`translate(calc(${tx-fx}px - 50%),calc(${ty-fy}px - 50%))`}],
+    {duration:ms,easing:'cubic-bezier(.77,0,.175,1)',fill:'forwards'}).finished.then(()=>f);
+  });
+  const flies=await Promise.all(moves);alive(id);
+  flies.forEach(f=>f.remove());
+  slot.classList.add('in');if(e.records.length>1)slot.classList.add('merge');
+  cnt.textContent=RT.before.events+k+1;cnt.classList.remove('tick');void cnt.offsetWidth;cnt.classList.add('tick');
+  await pause(e.records.length>1?1300:600,id);
+ }
+}
+function overRetrain(el){
+ const zn=z=>esc(zoneOf(z)?.name||z);
+ const rows=RT.day_events.flatMap((e,k)=>e.records.map(t=>({t,k,zone:e.zone}))).sort((x,y)=>x.t.localeCompare(y.t));
+ el.innerHTML=`<h1>오늘의 기록 → 학습 자료</h1><div class="rule"></div>
+  <div class="rt">
+   <div class="col"><h2>주민 기록 · ${M}.${DD}</h2>
+    ${rows.map(r=>`<div class="rec" data-k="${r.k}" data-t="${r.t}"><i class="dot"></i><b>${r.t}</b><span>${zn(r.zone)}</span></div>`).join('')}</div>
+   <svg class="rt-arrow" viewBox="0 0 40 16" aria-hidden="true"><path d="M2 8H36M30 3l6 5-6 5"/></svg>
+   <div class="col data"><h2>학습 자료</h2>
+    <div class="total"><b id="rt-count">${RT.before.events}</b><span>사건</span></div>
+    ${RT.day_events.map((e,k)=>`<div class="ev" data-k="${k}"><i class="dot"></i><b>${e.start===e.end?e.start:`${e.start}–${e.end}`}</b><span>${zn(e.zone)}</span><em>기록 ${e.records.length}</em></div>`).join('')}</div>
+  </div>`;
+}
+function drawCompare(){
+ const el=$('over'),max=Math.max(...[RT.before,RT.after].flatMap(m=>Object.values(m.groups)));
+ const md=s=>{const [,mm,dd]=s.split('-').map(Number);return `${mm}.${dd}`;};
+ const col=(m,cls,name)=>`<div class="m ${cls}"><div class="hd"><b>${name}</b><span>~${md(m.until)} · 사건 ${m.events}</span><em>적용</em></div>
+   <div class="auc"><span>AUC</span><b>${auc2(m.auc)}</b></div>
+   ${Object.entries(m.groups).map(([g,v])=>`<div class="contrib"><span>${esc(g)}</span><span class="track"><span class="fill pos" data-w="${(v/max*100).toFixed(1)}"></span></span><span class="v">${v.toFixed(2)}</span></div>`).join('')}</div>`;
+ el.innerHTML=`<h1>이전 모델 · 새 모델</h1><div class="rule"></div>
+  <div class="cmp">${col(RT.before,'old','이전 모델')}${col(RT.after,'new','새 모델')}</div>
+  <p class="foot">요인별 크기 = 표준화 계수 절댓값 합 · AUC = 사건 단위 5겹 교차검증</p>`;
+ el.style.animation='none';void el.offsetWidth;el.style.animation='';
+ requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll('.cmp .fill').forEach((f,k)=>{f.style.transitionDelay=dur(120*(k%4))+'ms';f.style.width=f.dataset.w+'%';})));
 }
 
 function key(e){
@@ -457,7 +551,7 @@ let overTimer=null,overKind='';
 function stopOver(){clearInterval(overTimer);overTimer=null;overKind='';$('over').hidden=true;$('over').innerHTML='';}
 function showOver(kind){
  const el=$('over');overKind=kind;el.hidden=false;el.style.animation='none';void el.offsetWidth;el.style.animation='';
- ({model:overModel,sensor:overSensor,loop:overLoop})[kind](el);
+ ({model:overModel,sensor:overSensor,loop:overLoop,retrain:overRetrain})[kind](el);
 }
 // 장면 2 · 모델이 본 것
 const DIR16=['북','북북동','북동','동북동','동','동남동','남동','남남동','남','남남서','남서','서남서','서','서북서','북서','북북서'];

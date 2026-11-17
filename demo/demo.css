@@ -184,3 +184,47 @@ button:focus-visible{outline:3px solid var(--petrol);outline-offset:2px}
 #clock.land{animation:land .6s var(--ease) 1}
 @keyframes land{0%{color:var(--petrol);transform:scale(1.15)}100%{color:inherit;transform:none}}
 @media (prefers-reduced-motion:reduce){#bigclock,#bigclock.out{animation-name:fade!important}.compass .streaks path,#timeline.running .fan{animation:none}}
+
+/* 장면 6 · 다시 학습: 출력 → 입력 고리 (적용 뒤에만 보임) */
+#flow .close{position:absolute;left:0;top:44px;opacity:0;transition:opacity .3s ease}
+#flow .close path{fill:none;stroke:var(--petrol);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:440;stroke-dashoffset:440}
+#flow .close-label{left:150px;top:53px;padding:0 6px;background:#fff;font-size:11px;letter-spacing:0;color:var(--petrol);font-weight:700;opacity:0;transition:opacity .3s ease .5s}
+#flow.closed .back,#flow.closed .learn-label{opacity:0}
+#flow.closed .close,#flow.closed .close-label{opacity:1}
+#flow.closed .close path{animation:closeDraw 1.2s var(--ease-io) forwards}
+#flow.closed [data-node=forecast]{color:var(--petrol);font-weight:700}
+@keyframes closeDraw{to{stroke-dashoffset:0}}
+
+/* ① 기록 → 사건 */
+.rt{position:relative;display:grid;grid-template-columns:1fr 56px 1fr;align-items:start;margin-top:4px}
+.rt h2{margin:0 0 10px;font-size:17px;color:var(--ink2);font-weight:500}
+.rt-arrow{width:40px;height:16px;margin:120px auto 0}.rt-arrow path{fill:none;stroke:var(--ink3);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rt .rec,.rt .ev{display:grid;grid-template-columns:22px 112px 1fr auto;align-items:center;height:52px;border-bottom:1px solid var(--line);font-size:20px;white-space:nowrap}
+.rt .ev{grid-template-columns:22px 164px 1fr auto}
+.rt .rec b,.rt .ev b{font-family:var(--f-mono);letter-spacing:0;font-weight:500;font-size:19px}
+.rt .dot{width:12px;height:12px;border-radius:6px;background:var(--nose)}
+.rt .rec{transition:opacity .4s ease}.rt .rec.gone{opacity:.28}
+.rt .ev{opacity:0;transform:translateX(-6px);transition:opacity .3s ease,transform .4s var(--ease)}
+.rt .ev.in{opacity:1;transform:none}
+.rt .ev .dot{background:var(--petrol)}.rt .ev.merge .dot{width:16px;height:16px;border-radius:8px;margin-left:-2px;animation:litPop .5s var(--ease)}
+.rt .ev em{font-style:normal;font-size:15px;color:var(--ink3)}.rt .ev.merge em{color:var(--petrol);font-weight:700}
+.rt .total{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.rt .total b{font-family:var(--f-mono);letter-spacing:0;font-size:44px;line-height:1;font-weight:500;display:inline-block}
+.rt .total b.tick{animation:land .6s var(--ease) 1}
+.rt .total span{font-size:18px;color:var(--ink2)}
+.rt .fly{position:absolute;width:12px;height:12px;border-radius:6px;background:var(--nose);transform:translate(-50%,-50%);z-index:3;pointer-events:none}
+
+/* ② 이전 모델 · 새 모델 */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px}
+.cmp .m{padding:20px 22px 16px}
+.cmp .m{border:1px solid var(--line);border-radius:8px;padding:16px 20px 12px;transition:border-color .3s ease,box-shadow .3s ease,opacity .3s ease}
+.cmp .hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.cmp .hd b{font-size:22px;letter-spacing:-.03em}.cmp .hd span{font-size:15px;color:var(--ink3)}
+.cmp .hd em{margin-left:auto;font-style:normal;font-size:15px;font-weight:700;color:var(--petrol);opacity:0;transition:opacity .3s ease}
+.cmp .auc{display:flex;align-items:baseline;gap:10px;margin:10px 0 8px}.cmp .auc span{font-size:15px;color:var(--ink2)}
+.cmp .auc b{font-family:var(--f-mono);letter-spacing:0;font-size:52px;line-height:1;font-weight:500}
+.cmp .contrib{grid-template-columns:40px 1fr 52px;height:46px;font-size:19px}
+.cmp .contrib .track::before{display:none}.cmp .contrib .track{background:#F1F5F6;border-radius:3px}
+.cmp .contrib .fill{left:0;width:0;transition:width .7s var(--ease-io)}
+.cmp .m.chosen{border-color:var(--petrol);box-shadow:0 0 0 1px var(--petrol)}.cmp .m.chosen .hd em{opacity:1}
+.cmp .m.dim{opacity:.5}
+@media (prefers-reduced-motion:reduce){#flow.closed .close path{animation:none;stroke-dashoffset:0}.rt .total b.tick,.rt .ev.merge .dot{animation:none}}
