@@ -2,7 +2,7 @@
 <html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>코넥트 시연</title>
 <link rel="icon" type="image/svg+xml" href="../assets/logo.svg">
-<link rel="stylesheet" href="demo.css?v=13"></head>
+<link rel="stylesheet" href="demo.css?v=14"></head>
 <body>
 <header id="bar">
  <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#0A6A85"/><g transform="translate(13 12)" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4V36" stroke="#FFFFFF"/><path d="M32 4L14 26Q12 31 17 31H30" stroke="#E8603F"/></g></svg><strong>코넥트</strong><span id="brand-day"></span></div>
@@ -36,12 +36,12 @@
   <button data-act="fan">공기청정기 USB 연결</button><span id="fan-state" class="muted">연결 안 됨</span>
   <button data-act="sensor">센서 USB 연결</button><span id="sensor-state" class="muted">연결 안 됨</span>
   <span id="usb-note" class="muted" hidden>USB 연결(공기청정기 · 센서): 노트북에서 직접 실행할 때만</span>
-  <label><input type="checkbox" id="practice"> 센서 연습 신호 <span class="muted">(가상 · 화면에 표시됨)</span></label>
+  <label><input type="checkbox" id="practice"> 센서 가상 값 <span class="muted">(시연용 · 화면에 표시됨)</span></label>
   <div class="speed" role="group" aria-label="속도"><span>속도</span><button data-speed="slow">느리게</button><button data-speed="normal">보통</button><button data-speed="fast">빠르게</button></div>
   <span id="map-state" class="muted">지도 확인 중</span>
   <button data-act="restart">처음부터</button>
  </div>
 </main>
 <script src="data.js?v=5"></script>
-<script src="demo.js?v=13"></script>
+<script src="demo.js?v=14"></script>
 </body></html>

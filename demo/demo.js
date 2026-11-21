@@ -423,13 +423,13 @@ function afterRecordCard(id){
 
 // 장면 5 · 센서: 세 줄(예보 · 주민 · 센서)이 차례로
 async function sceneSensor(id){
- if(EMBED&&!practice&&!ports.sensor){$('practice').checked=true;startPractice();}
+ if(!practice){$('practice').checked=true;startPractice();}   // 시연용: 센서 장면은 늘 가상 값으로 그린다
  showOver('sensor');
  showCard({big:'예보 · 주민 기록 · 센서 비교',target:{el:'over'},side:'left',dy:24});
  await tween(T(SCENES[4].t),600,id);alive(id);push();appTab('');refreshAgree();
  for(const row of document.querySelectorAll('#over .agree > div')){await pause(1300,id);row.classList.add('in');}
  await pause(600,id);
- showCard({big:'예보 · 주민 기록 · 센서 비교',small:practice?'센서: <b>연습용 가상 신호</b>':ports.sensor?'센서: 기준(처음 5초 평균) 대비 변화':'센서 연결 전',
+ showCard({big:'예보 · 주민 기록 · 센서 비교',small:'센서: <b>시연용 가상 값</b>'+(ports.sensor?' · 센서 노드 USB 연결됨':''),
   act:{button:'다시 학습',onClick:next},target:{el:'over'},side:'left',dy:24});
 }
 
@@ -631,7 +631,7 @@ function sensorLost(){if(lost)return;lost=true;$('sensor-state').textContent='�
 setInterval(()=>{if(ports.sensor&&!practice&&lastAt&&performance.now()-lastAt>STALE_MS)sensorLost();},1000);
 function overSensor(el){
  const l=levelAt(peakH,D.home_zone);
- el.innerHTML=`<h1>실시간 센서 측정값</h1><div class="rule"></div>
+ el.innerHTML=`<h1>센서 측정값 <span class="demo-badge">시연용 · 가상 데이터</span></h1><div class="rule"></div>
   <div class="sensor"><div class="chart"><span class="tag" id="s-tag"></span><svg viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true"><line id="s-base" x1="0" x2="1000" stroke="#5E6C74" stroke-width="1.5" stroke-dasharray="6 6" vector-effect="non-scaling-stroke" visibility="hidden"/><polyline id="s-line" fill="none" stroke="#0A6A85" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><span class="base-tag" id="s-base-tag" hidden>기준(처음 5초 평균)</span><div class="empty" id="s-empty">센서 연결 전</div></div>
    <dl class="agree"><div><dt>예보 · ${+peakH}시 ${esc(home.name)}</dt><dd class="lv-${LEVEL_CLASS[l]||'hold'}">${esc(l||'보류')}</dd></div>
     <div><dt>주민 기록 · 오늘 저녁</dt><dd id="s-rep"></dd></div>
@@ -643,7 +643,7 @@ function drawSensor(){
  const line=$('s-line');if(!line)return;
  const has=samples.length>1;
  $('s-empty').hidden=has;
- $('s-tag').textContent=!has?'':lost?'센서 끊김':practice?'연습용 가상 신호':sensorLabel||'센서 값';
+ $('s-tag').textContent=!has?'':lost?'센서 끊김':practice?'시연용 · 가상 값':sensorLabel||'센서 값';
  $('s-tag').className='tag'+(lost?' lost':practice?' virt':'');
  line.setAttribute('stroke-dasharray',practice?'7 6':'');line.style.opacity=lost?.3:1;
  if(!has)return;
@@ -654,7 +654,7 @@ function drawSensor(){
  const bl=$('s-base'),bt=$('s-base-tag');
  if(base!==null){const yb=y(base).toFixed(1);bl.setAttribute('y1',yb);bl.setAttribute('y2',yb);bl.setAttribute('visibility','visible');bt.hidden=false;bt.style.top=`calc(${(yb/400*100).toFixed(2)}% + 6px)`;}
  else{bl.setAttribute('visibility','hidden');bt.hidden=true;}
- const virt=practice?'<em class="virt">연습용 가상</em>':'';
+ const virt=practice?'<em class="virt">시연용 가상</em>':'';
  if(lost){$('s-now').innerHTML='센서 끊김<small>마지막 값 숨김</small>';$('s-now').className='lost';return;}
  $('s-now').className='';
  if(base===null){$('s-now').innerHTML=`기준 재는 중${virt}<small>처음 5초 평균</small>`;return;}
@@ -700,13 +700,15 @@ async function connect(kind){
   // ESP32 보드는 포트를 열 때 DTR/RTS 로 재부팅될 수 있다. 신호를 내려 두고, 부팅이 끝날 즈음 상태를 한 번 더 보낸다.
   try{await port.setSignals({dataTerminalReady:false,requestToSend:false});}catch(e){}
   ports[kind]=port;st.textContent='연결됨';
-  if(kind==='sensor'){stopPractice();resetSamples();readLines(port,l=>{const v=parseSensor(l);if(typeof v==='number'&&isFinite(v))addSample(v);}).catch(()=>{}).finally(sensorLost);}
+  // 시연용: 센서 노드(우노)는 연결 여부만 확인하고, 그래프는 가상 값으로 그린다(실측 아님 · 화면에 '시연용' 표시)
+  if(kind==='sensor'){st.textContent='연결됨 · 값은 시연용 가상';if(!practice){$('practice').checked=true;startPractice();}
+   readLines(port,()=>{}).catch(()=>{}).finally(()=>{ports.sensor=null;st.textContent='끊김';});}
   else{readLines(port,()=>{});fanOn=null;syncFan();setTimeout(()=>{fanOn=null;syncFan();},3000);}
  }catch(e){st.textContent='연결 안 됨';}
 }
 function syncFan(){const on=fanShouldRun();if(on===fanOn)return;fanOn=on;if(ports.fan)writeLine(ports.fan,on?'FAN ON':'FAN OFF');}
 function stopPractice(){clearInterval(practice);practice=null;$('practice').checked=false;}
-if('serial' in navigator)navigator.serial.addEventListener('disconnect',e=>{if(e.target===ports.sensor){ports.sensor=null;sensorLost();}if(e.target===ports.fan){ports.fan=null;$('fan-state').textContent='끊김';}});
+if('serial' in navigator)navigator.serial.addEventListener('disconnect',e=>{if(e.target===ports.sensor){ports.sensor=null;$('sensor-state').textContent='끊김';}if(e.target===ports.fan){ports.fan=null;$('fan-state').textContent='끊김';}});
 // 연습 신호: 화면에 '연습용 가상'으로 표시된다. 처음 6초는 평소 수준, 그다음 30초에 걸쳐 완만하게 오른다.
 function startPractice(){
  resetSamples();let t=0,v=120;
